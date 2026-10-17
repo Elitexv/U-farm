@@ -1,0 +1,80 @@
+rules_version = '2';
+
+// U-farm Firestore security rules.
+// Paste into Firebase console → Firestore Database → Rules, then Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // An admin is a signed-in user whose UID has a document in /admins.
+    // Add admins by hand in the console (the admin panel shows your UID).
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function str(v, max) { return v is string && v.size() <= max; }
+
+    // Catalog: public to read, admin-only to change.
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /images/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Public site settings (contact details, shipping, payment methods).
+    match /settings/site {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Private settings (e.g. the Vercel deploy hook URL).
+    match /settings/private {
+      allow read, write: if isAdmin();
+    }
+
+    // Orders: customers can only create a well-formed new order.
+    match /orders/{id} {
+      allow create: if id.size() <= 40
+        && request.resource.data.keys().hasOnly(['ref', 'status', 'createdAt', 'currency', 'subtotal', 'itemCount', 'items', 'customer'])
+        && request.resource.data.ref == id
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt is timestamp
+        && str(request.resource.data.currency, 5)
+        && request.resource.data.subtotal is number && request.resource.data.subtotal >= 0
+        && request.resource.data.itemCount is int && request.resource.data.itemCount > 0 && request.resource.data.itemCount <= 5000
+        && request.resource.data.items is list && request.resource.data.items.size() > 0 && request.resource.data.items.size() <= 60
+        && request.resource.data.customer is map
+        && request.resource.data.customer.keys().hasOnly(['name', 'phone', 'address', 'city', 'payment', 'notes'])
+        && str(request.resource.data.customer.name, 120) && request.resource.data.customer.name.size() > 0
+        && str(request.resource.data.customer.phone, 40) && request.resource.data.customer.phone.size() > 0
+        && str(request.resource.data.customer.address, 300)
+        && str(request.resource.data.customer.city, 120)
+        && str(request.resource.data.customer.payment, 80)
+        && str(request.resource.data.customer.notes, 1000);
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Contact-form messages: create-only for visitors.
+    match /messages/{id} {
+      allow create: if id.size() <= 40
+        && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'topic', 'message', 'status', 'createdAt'])
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt is timestamp
+        && str(request.resource.data.name, 200) && request.resource.data.name.size() > 0
+        && str(request.resource.data.email, 200) && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && str(request.resource.data.phone, 200)
+        && str(request.resource.data.topic, 200)
+        && str(request.resource.data.message, 4000) && request.resource.data.message.size() > 0;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Each user may only check their own admin status. Nobody can grant
+    // themselves admin from the website.
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}

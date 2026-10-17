@@ -22,6 +22,31 @@
     return catalogPromise;
   }
 
+  // ---------- Firestore (orders + contact messages) ----------
+  // Plain REST calls: no Firebase SDK needed on public pages.
+  function fsValue(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(fsValue) } };
+    if (v instanceof Date) return { timestampValue: v.toISOString() };
+    if (typeof v === 'string') return { stringValue: v };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    var fields = {};
+    Object.keys(v).forEach(function (k) { fields[k] = fsValue(v[k]); });
+    return { mapValue: { fields: fields } };
+  }
+  function saveDoc(fb, collection, id, data) {
+    if (!fb || !fb.projectId) return Promise.reject(new Error('Firebase not configured'));
+    var url = 'https://firestore.googleapis.com/v1/projects/' + fb.projectId + '/databases/(default)/documents/' +
+      collection + '?documentId=' + encodeURIComponent(id) + '&key=' + fb.apiKey;
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: fsValue(data).mapValue.fields }),
+      keepalive: true, // still delivered if the page navigates to WhatsApp
+    }).then(function (r) { if (!r.ok) throw new Error('Save failed (' + r.status + ')'); return r; });
+  }
+
   function load(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; }
   }
@@ -296,7 +321,22 @@
 
       var win = window.open(url, '_blank');
       if (win) win.opener = null;
-      else location.href = url; // pop-up blocked: open in this tab
+
+      // Keep a copy of the order for the admin panel (never blocks WhatsApp).
+      saveDoc(data.store.firebase, 'orders', ref, {
+        ref: ref,
+        status: 'new',
+        createdAt: new Date(),
+        currency: data.store.currency,
+        subtotal: c.subtotal,
+        itemCount: c.count,
+        items: c.lines.map(function (l) {
+          return { slug: l.p.slug, name: l.p.name, sku: l.p.sku, qty: l.qty, price: l.p.price, total: l.total };
+        }),
+        customer: { name: v.name, phone: v.phone, address: v.address, city: v.city, payment: v.payment || '', notes: v.notes || '' },
+      }).catch(function () { /* the WhatsApp message is the order of record */ });
+
+      if (!win) location.href = url; // pop-up blocked: open in this tab
 
       store(CART_KEY, {});
       updateCount();
@@ -453,17 +493,37 @@
   }
 
   // ---------- contact form (no backend: opens the visitor's email app) ----------
+  // Saves the message to Firestore; falls back to the visitor's email app.
   function setupContact(form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var f = new FormData(form);
-      var mail = document.querySelector('.site-footer a[href^="mailto:"]');
-      var to = mail ? mail.getAttribute('href') : 'mailto:';
-      var body = 'Name: ' + f.get('name') + '\nEmail: ' + f.get('email') + '\nPhone: ' + (f.get('phone') || '-') + '\n\n' + f.get('message');
-      location.href = to + '?subject=' + encodeURIComponent('Website enquiry: ' + f.get('topic')) + '&body=' + encodeURIComponent(body);
+      var v = {};
+      ['name', 'email', 'phone', 'topic', 'message'].forEach(function (k) { v[k] = String(f.get(k) || '').trim().slice(0, k === 'message' ? 4000 : 200); });
       var note = form.querySelector('[data-form-note]');
-      note.textContent = 'Your email app should open with your message ready to send. If it does not, email us directly.';
-      note.hidden = false;
+      var btn = form.querySelector('[type="submit"]');
+      btn.disabled = true;
+      catalog()
+        .then(function (data) {
+          var id = 'MSG-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+          return saveDoc(data.store.firebase, 'messages', id, {
+            name: v.name, email: v.email, phone: v.phone, topic: v.topic, message: v.message, status: 'new', createdAt: new Date(),
+          });
+        })
+        .then(function () {
+          form.reset();
+          note.textContent = 'Thank you — your message has been received. We usually reply within one business day.';
+          note.hidden = false;
+        })
+        .catch(function () {
+          var mail = document.querySelector('.site-footer a[href^="mailto:"]');
+          var to = mail ? mail.getAttribute('href') : 'mailto:';
+          var body = 'Name: ' + v.name + '\nEmail: ' + v.email + '\nPhone: ' + (v.phone || '-') + '\n\n' + v.message;
+          location.href = to + '?subject=' + encodeURIComponent('Website enquiry: ' + v.topic) + '&body=' + encodeURIComponent(body);
+          note.textContent = 'We could not send that from the website, so your email app is opening with your message ready to send.';
+          note.hidden = false;
+        })
+        .finally(function () { btn.disabled = false; });
     });
   }
 

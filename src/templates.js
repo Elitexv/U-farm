@@ -8,7 +8,7 @@ const esc = (s) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const abs = (path) => site.url + path;
+const abs = (path) => (/^https?:\/\//.test(path) ? path : site.url + path);
 
 const money = (n) =>
   new Intl.NumberFormat('en-NG', { style: 'currency', currency: site.currency, maximumFractionDigits: 0 }).format(n);
@@ -247,6 +247,22 @@ function breadcrumbs(items) {
   return { html, ld };
 }
 
+// Google Analytics 4 (the Firebase Analytics property). Skipped on localhost so
+// testing does not pollute your numbers.
+const GA_ID = require('./firebase').config.measurementId;
+const analytics = `<script>
+if (!/^(localhost|127\\.|0\\.0\\.0\\.0)/.test(location.hostname)) {
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function () { dataLayer.push(arguments); };
+  gtag('js', new Date());
+  gtag('config', '${GA_ID}');
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_ID}';
+  document.head.appendChild(s);
+}
+</script>`;
+
 function layout({ title, description, path, body, ld = [], ogType = 'website', image, noindex = false }) {
   const fullTitle = path === '/' ? title : `${title} | ${site.name}`;
   const img = abs(image && !image.endsWith('.svg') ? image : site.ogImage);
@@ -278,6 +294,7 @@ ${noindex ? '<meta name="robots" content="noindex, follow">' : '<meta name="robo
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap">
 <link rel="stylesheet" href="/assets/css/style.css">
 ${ld.map(jsonLd).join('\n')}
+${analytics}
 </head>
 <body>
 ${header(path)}

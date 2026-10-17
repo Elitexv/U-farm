@@ -1,9 +1,6 @@
 # Vercel hosts U-farm as a static site (vercel.json builds dist/).
-# The Node server and admin panel need a writable disk, so they are not
-# deployed there; run them locally with `npm start` (see README).
-server.js
+# Data comes from Firestore at build time; the admin is a static page (public/admin).
 serve.js
-admin
 admin.config.json
 dist
 dist.tmp

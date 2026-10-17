@@ -7,6 +7,7 @@ const categories = require('./src/categories');
 const store = require('./src/products');
 const posts = require('./src/posts');
 const { art, keys: artKeys } = require('./src/art');
+const firebase = require('./src/firebase');
 const t = require('./src/templates');
 
 const {
@@ -43,7 +44,7 @@ const countIn = (subSlug) => products.filter((p) => p.sub === subSlug).length;
 const firstSentence = (s) => s.split('. ')[0].replace(/\.$/, '') + '.';
 const readMins = (html) => Math.max(2, Math.round(html.replace(/<[^>]+>/g, ' ').split(/\s+/).length / 200));
 
-const organization = {
+const organization = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
   '@id': abs('/#organization'),
@@ -54,7 +55,7 @@ const organization = {
   email: site.email,
   telephone: site.phone,
   sameAs: Object.values(site.social),
-};
+});
 
 const faqLd = (faq) => ({
   '@context': 'https://schema.org',
@@ -155,7 +156,7 @@ const relatedGuides = (cat) => {
 const formatDate = (d) =>
   new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
-const promises = `
+const promises = () => `
 <ul class="promise-list">
   <li>${icons.truck}<span><b>Nationwide delivery</b> Free on orders over ${money(site.freeShippingOver)}</span></li>
   <li>${icons.shield}<span><b>Genuine &amp; under warranty</b> Original brands, manufacturer-backed</span></li>
@@ -302,7 +303,7 @@ ${featuredOther.length ? `
       description: site.description,
       path: '/',
       body,
-      ld: [organization, websiteLd],
+      ld: [organization(), websiteLd],
     }),
     { priority: 1.0 }
   );
@@ -431,7 +432,7 @@ function productPage(prod) {
           <button class="btn btn-primary btn-lg" data-add-to-cart="${prod.slug}"${buyable ? '' : ' disabled'}>${icons.cart} Add to cart</button>
         </div>
         <a class="btn btn-wa btn-lg btn-block" href="https://wa.me/${site.whatsapp}?text=${waText}" rel="noopener">${icons.whatsapp} Order on WhatsApp</a>
-        ${promises}
+        ${promises()}
       </div>
     </div>
   </div>
@@ -839,8 +840,27 @@ function extras() {
         email: site.email,
         freeShippingOver: site.freeShippingOver,
         paymentMethods: site.paymentMethods,
+        // Lets checkout and the contact form save orders/messages to Firestore.
+        firebase: { projectId: firebase.config.projectId, apiKey: firebase.config.apiKey },
       },
       products: index,
+    })
+  );
+
+  // Starter catalog the admin can import into an empty Firestore.
+  fs.mkdirSync(path.join(OUT, 'admin'), { recursive: true });
+  fs.writeFileSync(path.join(OUT, 'admin', 'seed.json'), JSON.stringify(store.load()));
+
+  // Everything the admin panel needs to know about the site.
+  fs.writeFileSync(
+    path.join(OUT, 'admin', 'meta.json'),
+    JSON.stringify({
+      firebase: firebase.config,
+      currency: site.currency,
+      currencySymbol: site.currencySymbol,
+      artKeys,
+      categories: categories.map((c) => ({ slug: c.slug, name: c.name, subs: c.subs.map((s) => ({ slug: s.slug, name: s.name })) })),
+      siteDefaults: Object.fromEntries(Object.keys(SETTING_TYPES).map((k) => [k, site[k]])),
     })
   );
 
@@ -879,19 +899,98 @@ function extras() {
   );
 }
 
+// ---------- data from Firestore ----------
+// Settings the admin can change; anything else in settings/site is ignored.
+const SETTING_TYPES = {
+  phone: 'string', phoneDisplay: 'string', whatsapp: 'string', email: 'string',
+  hours: 'string', freeShippingOver: 'number', paymentMethods: 'array', address: 'object', social: 'object',
+};
+function applySettings(remote) {
+  for (const [key, type] of Object.entries(SETTING_TYPES)) {
+    const v = remote[key];
+    if (v == null || v === '') continue;
+    if (type === 'array' ? Array.isArray(v) && v.length : typeof v === type) {
+      site[key] = type === 'object' ? { ...site[key], ...v } : v;
+    }
+  }
+  site.whatsapp = String(site.whatsapp).replace(/\D/g, '');
+}
+
+// Keep only well-formed products, so one bad document can't break the site.
+function cleanRemote(docs) {
+  const ok = [];
+  for (const d of docs) {
+    const cat = findCategory(d.category);
+    const valid = d.name && d.sku && cat && findSub(cat, d.sub) && Number.isFinite(d.price) && d.short;
+    if (!valid) { console.warn(`  skipped product "${d.id}": missing name, SKU, price, short description or category`); continue; }
+    const { thumb, position, updatedAt, id, ...p } = d;
+    p.slug = id;
+    p.description = Array.isArray(p.description) && p.description.length ? p.description : [p.short];
+    p.features = Array.isArray(p.features) ? p.features : [];
+    p.uses = Array.isArray(p.uses) ? p.uses : [];
+    p.specs = p.specs && typeof p.specs === 'object' ? p.specs : {};
+    p.stock = ['InStock', 'PreOrder', 'OutOfStock'].includes(p.stock) ? p.stock : 'InStock';
+    if (!p.image && !artKeys.includes(p.art)) p.art = 'meter-cup';
+    ok.push({ ...p, _position: Number.isFinite(position) ? position : 0 });
+  }
+  return ok.sort((a, b) => a._position - b._position).map(({ _position, ...p }) => p);
+}
+
+let source = 'local';
+async function loadCatalog() {
+  try {
+    const [remote, settings] = await Promise.all([firebase.getCollection('products'), firebase.getDoc('settings/site')]);
+    if (settings) applySettings(settings);
+    if (remote.length) {
+      source = 'Firestore';
+      return cleanRemote(remote);
+    }
+    console.warn('Firestore has no products yet — using src/data/products.json');
+  } catch (err) {
+    console.warn(`Could not read Firestore (${err.message}) — using src/data/products.json`);
+  }
+  source = 'local';
+  return store.load();
+}
+
+// Photos uploaded in the admin live in Firestore (images/{id}) as data URLs.
+// Write them out as normal files so pages, Google and social previews use plain URLs.
+async function materializeImages(list) {
+  const dir = path.join(OUT, 'assets', 'img', 'products', 'uploads');
+  for (const p of list) {
+    if (!p.image || !p.image.startsWith('fsimg:')) continue;
+    const id = p.image.slice(6);
+    try {
+      const doc = await firebase.getDoc(`images/${encodeURIComponent(id)}`);
+      const m = doc && /^data:image\/(png|jpeg|webp);base64,(.+)$/.exec(doc.data || '');
+      if (!m) throw new Error('missing or not an image');
+      const ext = { png: 'png', jpeg: 'jpg', webp: 'webp' }[m[1]];
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${id}.${ext}`), Buffer.from(m[2], 'base64'));
+      p.image = `/assets/img/products/uploads/${id}.${ext}`;
+    } catch (err) {
+      console.warn(`  photo for "${p.slug}" unavailable (${err.message}); using an illustration`);
+      delete p.image;
+      p.art = p.art || 'meter-cup';
+    }
+  }
+  return list;
+}
+
 // ---------- run ----------
 const rm = (dir) => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
 // Builds into dist.tmp, then swaps it into place so a live server never
 // serves a half-built site. Returns the number of indexable pages.
-function build() {
-  products = store.load();
-  t.setCatalog(products);
+async function build() {
+  const catalog = await loadCatalog();
   today = new Date().toISOString().slice(0, 10);
   sitemap.length = 0;
   OUT = DIST + '.tmp';
   rm(OUT);
   copyDir(path.join(__dirname, 'public'), OUT);
+  products = await materializeImages(catalog);
+  t.setCatalog(products);
 
   home();
   categories.forEach((c) => {
@@ -922,5 +1021,10 @@ function build() {
 module.exports = { build };
 
 if (require.main === module) {
-  console.log(`Built ${build()} indexable pages + utility pages into dist/`);
+  build()
+    .then((n) => console.log(`Built ${n} indexable pages from ${source} data (${products.length} products) into dist/`))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
 }

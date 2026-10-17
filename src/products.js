@@ -1,6 +1,6 @@
-// Product catalog store. Products live in src/data/products.json, which is
-// edited through the admin panel (npm start → /admin) or by hand.
-// Each product gets its own page at /products/<slug>/.
+// Local product catalog (src/data/products.json). Products are managed in
+// Firestore through /admin/; this file is the starter catalog the admin can
+// import, and the fallback the build uses if Firestore is empty or unreachable.
 const fs = require('fs');
 const path = require('path');
 
