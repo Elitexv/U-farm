@@ -1,5 +1,6 @@
 // U-farm admin panel — Firebase Auth + Firestore, hosted as a static page.
-// Routes: #/ (products), #/new, #/edit/<slug>, #/orders, #/messages, #/settings
+// Routes: #/ (products), #/overview, #/new, #/edit/<slug>, #/duplicate/<slug>,
+//         #/orders, #/messages, #/categories, #/customers, #/settings
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
@@ -16,16 +17,22 @@ const app = initializeApp(meta.firebase);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const state = { products: [], editing: null, dirty: false, slugTouched: false, photo: null, orders: [], messages: [] };
+const PAGE_SIZE = 10;
+const state = {
+  products: [], editing: null, dirty: false, slugTouched: false, photo: null,
+  orders: [], messages: [], page: 1, featuredOnly: false,
+};
 const STOCK = { InStock: 'In stock', PreOrder: 'Pre-order', OutOfStock: 'Out of stock' };
 const ORDER_STATUS = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 const MAX_IMAGE_BYTES = 700 * 1024; // keeps image documents well under Firestore's 1 MiB limit
 
 // ---------- helpers ----------
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const icon = (name, cls = 'i') => `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const money = (n) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: meta.currency, maximumFractionDigits: 0 }).format(n || 0);
 const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
-const when = (ts) => (ts && ts.toDate ? ts.toDate().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+const toDate = (ts) => (ts && ts.toDate ? ts.toDate() : null);
+const when = (ts) => (toDate(ts) ? toDate(ts).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const imageOf = (p) => p.thumb || (p.image && !p.image.startsWith('fsimg:') ? p.image : `/assets/img/products/${p.art || 'meter-cup'}.svg`);
 const catOf = (slug) => meta.categories.find((c) => c.slug === slug);
 const subName = (cat, sub) => (catOf(cat)?.subs.find((s) => s.slug === sub) || {}).name || sub;
@@ -54,14 +61,38 @@ const friendly = (err) => {
   return err && err.message ? err.message : String(err);
 };
 
+function download(filename, rows) {
+  const csv = rows.map((r) => r.map((c) => {
+    const s = String(c == null ? '' : c);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------- layout ----------
+const TAB_OF = { list: 'products', edit: 'products' };
 function show(view) {
   $$('[data-view]').forEach((v) => { v.hidden = v.getAttribute('data-view') !== view; });
   const authed = !['login', 'denied', 'loading'].includes(view);
   $$('[data-authed]').forEach((el) => { el.hidden = !authed; });
-  const tab = { list: 'products', edit: 'products' }[view] || view;
+  const tab = TAB_OF[view] || view;
   $$('[data-tab]').forEach((a) => a.classList.toggle('active', a.getAttribute('data-tab') === tab));
+  $$('[data-side]').forEach((a) => a.classList.toggle('active', a.getAttribute('data-side') === tab));
+  setSidebar(false);
+  closeMenu();
   window.scrollTo(0, 0);
 }
+function setSidebar(open) {
+  $('.sidebar').classList.toggle('open', open);
+  $('[data-sidebar-scrim]').hidden = !open;
+}
+$('[data-sidebar-toggle]').addEventListener('click', () => setSidebar(!$('.sidebar').classList.contains('open')));
+$('[data-sidebar-scrim]').addEventListener('click', () => setSidebar(false));
 
 // ---------- publishing (Vercel deploy hook) ----------
 const PENDING_KEY = 'ufarm-admin-pending';
@@ -131,7 +162,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ---------- products: data ----------
+// ---------- products: list ----------
 async function loadProducts() {
   const snap = await getDocs(collection(db, 'products'));
   state.products = snap.docs
@@ -139,34 +170,112 @@ async function loadProducts() {
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
-function renderList() {
+function filteredProducts() {
   const q = $('[data-search]').value.trim().toLowerCase();
   const cat = $('[data-filter-cat]').value;
   const stock = $('[data-filter-stock]').value;
-  const rows = state.products.filter((p) => {
+  return state.products.filter((p) => {
     if (cat && p.category !== cat) return false;
     if (stock && p.stock !== stock) return false;
+    if (state.featuredOnly && !p.featured) return false;
     if (q && `${p.name} ${p.sku} ${p.brand || ''}`.toLowerCase().indexOf(q) === -1) return false;
     return true;
   });
-  $('[data-rows]').innerHTML = rows.map((p) => `<tr>
-    <td><img class="thumb" src="${esc(imageOf(p))}" alt="" loading="lazy"></td>
-    <td><a class="pname" href="#/edit/${esc(p.slug)}">${esc(p.name)}</a><div class="sub">${esc(p.sku)}${p.brand ? ' · ' + esc(p.brand) : ''}</div></td>
-    <td>${esc(catOf(p.category)?.name || p.category)}<div class="sub">${esc(subName(p.category, p.sub))}</div></td>
-    <td class="num">${money(p.price)}${p.oldPrice ? `<div class="sub"><s>${money(p.oldPrice)}</s></div>` : ''}</td>
-    <td><span class="pill ${esc(p.stock)}">${STOCK[p.stock] || esc(p.stock)}</span></td>
-    <td><button type="button" class="star${p.featured ? ' on' : ''}" data-star="${esc(p.slug)}" aria-label="${p.featured ? 'Remove from' : 'Add to'} home page" title="Featured on home page">★</button></td>
-    <td><div class="actions"><a href="#/edit/${esc(p.slug)}">Edit</a><a href="/products/${esc(p.slug)}/" target="_blank" rel="noopener">View</a></div></td>
-  </tr>`).join('');
-  $('[data-empty]').hidden = rows.length > 0 || state.products.length === 0;
-  $('[data-empty-catalog]').hidden = state.products.length > 0;
-  const out = state.products.filter((p) => p.stock === 'OutOfStock').length;
-  const feat = state.products.filter((p) => p.featured).length;
-  $('[data-stats]').textContent = `${state.products.length} products · ${feat} featured · ${out} out of stock`;
 }
-['[data-search]', '[data-filter-cat]', '[data-filter-stock]'].forEach((s) => $(s).addEventListener('input', renderList));
+
+function renderList() {
+  const all = state.products;
+  $('[data-stat-total]').textContent = all.length;
+  $('[data-stat-featured]').textContent = all.filter((p) => p.featured).length;
+  $('[data-stat-in]').textContent = all.filter((p) => p.stock === 'InStock').length;
+  $('[data-stat-out]').textContent = all.filter((p) => p.stock === 'OutOfStock').length;
+  const stock = $('[data-filter-stock]').value;
+  $$('[data-stat]').forEach((b) => {
+    const k = b.getAttribute('data-stat');
+    b.classList.toggle('active', (k === 'featured' && state.featuredOnly) || (k === stock && !!stock));
+  });
+  const note = $('[data-filter-note]');
+  note.hidden = !state.featuredOnly;
+  if (state.featuredOnly) note.innerHTML = 'Showing featured products only. <button type="button" class="link" data-clear-featured>Show all</button>';
+
+  const rows = filteredProducts();
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  state.page = Math.min(Math.max(1, state.page), pages);
+  const start = (state.page - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+  $('[data-rows]').innerHTML = pageRows.map((p) => `<tr>
+    <td><div class="prod"><img class="thumb" src="${esc(imageOf(p))}" alt="" loading="lazy">
+      <div><a class="pname" href="#/edit/${esc(p.slug)}">${esc(p.name)}</a><div class="sub">${esc(p.sku)}${p.brand ? ' · ' + esc(p.brand) : ''}</div></div></div></td>
+    <td><div class="cat-main">${esc(catOf(p.category)?.name || p.category)}</div><div class="sub">${esc(subName(p.category, p.sub))}</div></td>
+    <td class="price-cell">${money(p.price)}${p.oldPrice ? `<s>${money(p.oldPrice)}</s>` : ''}</td>
+    <td><span class="pill ${esc(p.stock)}">${STOCK[p.stock] || esc(p.stock)}</span></td>
+    <td class="c"><button type="button" class="star${p.featured ? ' on' : ''}" data-star="${esc(p.slug)}" aria-label="${p.featured ? 'Remove from' : 'Add to'} home page" title="${p.featured ? 'Featured on home page' : 'Not featured'}">${icon(p.featured ? 'star' : 'star-o')}</button></td>
+    <td class="c"><span class="acts">
+      <a class="icon-act" href="#/edit/${esc(p.slug)}" aria-label="Edit ${esc(p.name)}" title="Edit">${icon('pencil')}</a>
+      <button type="button" class="icon-act" data-more="${esc(p.slug)}" aria-label="More actions for ${esc(p.name)}" aria-haspopup="menu" title="More">${icon('dots')}</button>
+    </span></td>
+  </tr>`).join('');
+
+  $('[data-empty]').hidden = rows.length > 0 || all.length === 0;
+  $('[data-empty-catalog]').hidden = all.length > 0;
+  renderPager(rows.length, pages);
+}
+
+function renderPager(total, pages) {
+  const pager = $('[data-pager]');
+  if (!total) { pager.innerHTML = ''; return; }
+  const from = (state.page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(total, state.page * PAGE_SIZE);
+  // 1 … 4 5 6 … 9 style page list
+  const nums = [];
+  for (let n = 1; n <= pages; n++) {
+    if (n === 1 || n === pages || Math.abs(n - state.page) <= 1 || (state.page <= 3 && n <= 5) || (state.page >= pages - 2 && n >= pages - 4)) nums.push(n);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+  pager.innerHTML = `<p>Showing ${from}–${to} of ${total} product${total === 1 ? '' : 's'}</p>
+    <div class="pages">
+      <button type="button" data-page="${state.page - 1}" ${state.page === 1 ? 'disabled' : ''} aria-label="Previous page">${icon('chevl', 'i i-sm')}</button>
+      ${nums.map((n) => (n === '…' ? '<span class="gap">…</span>' : `<button type="button" data-page="${n}" class="${n === state.page ? 'on' : ''}" ${n === state.page ? 'aria-current="page"' : ''}>${n}</button>`)).join('')}
+      <button type="button" data-page="${state.page + 1}" ${state.page === pages ? 'disabled' : ''} aria-label="Next page">${icon('chev', 'i i-sm')}</button>
+    </div>`;
+}
+
+['[data-search]', '[data-filter-cat]', '[data-filter-stock]'].forEach((s) => $(s).addEventListener('input', () => { state.page = 1; renderList(); }));
+$('[data-pager]').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-page]');
+  if (!b || b.disabled) return;
+  state.page = Number(b.getAttribute('data-page'));
+  renderList();
+  $('.table-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
+});
+$('[data-filter-note]').addEventListener('click', (e) => {
+  if (e.target.closest('[data-clear-featured]')) { state.featuredOnly = false; state.page = 1; renderList(); }
+});
+
+// Summary cards filter the list.
+$$('[data-stat]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.getAttribute('data-stat');
+  const stockSel = $('[data-filter-stock]');
+  if (k === 'all') { state.featuredOnly = false; stockSel.value = ''; $('[data-search]').value = ''; $('[data-filter-cat]').value = ''; }
+  else if (k === 'featured') { state.featuredOnly = !state.featuredOnly; }
+  else { stockSel.value = stockSel.value === k ? '' : k; }
+  state.page = 1;
+  renderList();
+}));
+
+$('[data-export]').addEventListener('click', () => {
+  const rows = filteredProducts();
+  download(`u-farm-products-${new Date().toISOString().slice(0, 10)}.csv`, [
+    ['Name', 'SKU', 'Brand', 'Category', 'Sub-category', 'Price (NGN)', 'Was price (NGN)', 'Stock', 'Featured', 'Page'],
+    ...rows.map((p) => [p.name, p.sku, p.brand || '', catOf(p.category)?.name || p.category, subName(p.category, p.sub), p.price, p.oldPrice || '', STOCK[p.stock] || p.stock, p.featured ? 'Yes' : 'No', `${location.origin}/products/${p.slug}/`]),
+  ]);
+  toast(`Exported ${rows.length} product${rows.length === 1 ? '' : 's'}.`);
+});
 
 $('[data-rows]').addEventListener('click', async (e) => {
+  const more = e.target.closest('[data-more]');
+  if (more) { openMenu(more, more.getAttribute('data-more')); return; }
   const btn = e.target.closest('[data-star]');
   if (!btn) return;
   const p = state.products.find((x) => x.slug === btn.getAttribute('data-star'));
@@ -183,6 +292,39 @@ $('[data-rows]').addEventListener('click', async (e) => {
   }
 });
 $('[data-new]').addEventListener('click', () => { location.hash = '#/new'; });
+
+// ⋯ menu
+const menu = $('[data-menu]');
+function openMenu(anchor, slug) {
+  if (!menu.hidden && menu.dataset.slug === slug) { closeMenu(); return; }
+  const p = state.products.find((x) => x.slug === slug);
+  menu.dataset.slug = slug;
+  menu.innerHTML = `
+    <a href="/products/${esc(slug)}/" target="_blank" rel="noopener" role="menuitem">${icon('eye')}View on shop</a>
+    <button type="button" data-act="duplicate" role="menuitem">${icon('plus')}Duplicate</button>
+    <button type="button" data-act="feature" role="menuitem">${icon(p.featured ? 'star-o' : 'star')}${p.featured ? 'Remove from home page' : 'Feature on home page'}</button>
+    <hr>
+    <button type="button" data-act="delete" class="danger" role="menuitem">${icon('ban')}Delete</button>`;
+  menu.hidden = false;
+  const r = anchor.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  menu.style.top = `${window.scrollY + r.bottom + 6}px`;
+  menu.style.left = `${Math.max(8, Math.min(window.scrollX + r.right - w, window.scrollX + document.documentElement.clientWidth - w - 8))}px`;
+}
+function closeMenu() { menu.hidden = true; delete menu.dataset.slug; }
+document.addEventListener('click', (e) => { if (!menu.hidden && !e.target.closest('[data-menu]') && !e.target.closest('[data-more]')) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMenu(); setSidebar(false); } });
+window.addEventListener('resize', closeMenu);
+menu.addEventListener('click', async (e) => {
+  const act = e.target.closest('[data-act]');
+  if (!act) { if (e.target.closest('a')) closeMenu(); return; }
+  const p = state.products.find((x) => x.slug === menu.dataset.slug);
+  closeMenu();
+  const action = act.getAttribute('data-act');
+  if (action === 'duplicate') location.hash = `#/duplicate/${encodeURIComponent(p.slug)}`;
+  if (action === 'feature') $(`[data-star="${CSS.escape(p.slug)}"]`)?.click();
+  if (action === 'delete') deleteProduct(p);
+});
 
 // One-click import of the catalog that is currently on the website.
 $('[data-import]').addEventListener('click', async () => {
@@ -231,56 +373,59 @@ function setPhoto(photo) {
   $('[data-art-wrap]').hidden = !!photo;
 }
 
-async function openEditor(p) {
+// p = product to edit; copyOf = product to duplicate into a new one.
+async function openEditor(p, copyOf) {
+  const isNew = !p;
   state.editing = p || null;
   state.slugTouched = !!p;
-  const isNew = !p;
-  p = p || { stock: 'InStock', category: meta.categories[0].slug, art: 'meter-cup', specs: {}, description: [], features: [], uses: [] };
+  const src = p || (copyOf ? { ...copyOf, name: `${copyOf.name} (copy)`, sku: `${copyOf.sku}-COPY`, slug: '', featured: false } : null)
+    || { stock: 'InStock', category: meta.categories[0].slug, art: 'meter-cup', specs: {}, description: [], features: [], uses: [] };
 
-  $('[data-edit-title]').textContent = isNew ? 'Add product' : 'Edit product';
+  $('[data-edit-title]').textContent = p ? 'Edit product' : copyOf ? 'Duplicate product' : 'Add product';
   form.reset();
-  form.name.value = p.name || '';
-  form.slug.value = p.slug || '';
+  form.name.value = src.name || '';
+  form.slug.value = isNew ? slugify(src.name || '') : src.slug;
+  if (!src.name) form.slug.value = '';
   form.slug.readOnly = !isNew;
   $('[data-slug-hint]').textContent = isNew
-    ? `Page address: /products/${p.slug || '…'}/ — cannot be changed later`
-    : `Page address is fixed: /products/${p.slug}/`;
-  form.sku.value = p.sku || '';
-  form.brand.value = p.brand || '';
-  form.category.value = p.category;
-  fillSubs(p.category, p.sub);
-  form.short.value = p.short || '';
-  form.description.value = (p.description || []).join('\n\n');
-  form.features.value = (p.features || []).join('\n');
-  form.specs.value = Object.entries(p.specs || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
-  form.uses.value = (p.uses || []).join('\n');
-  form.art.value = p.art || 'meter-cup';
-  form.price.value = p.price != null ? p.price : '';
-  form.oldPrice.value = p.oldPrice || '';
-  form.stock.value = p.stock || 'InStock';
-  form.featured.checked = !!p.featured;
+    ? `Page address: /products/${form.slug.value || '…'}/ — cannot be changed later`
+    : `Page address is fixed: /products/${src.slug}/`;
+  form.sku.value = src.sku || '';
+  form.brand.value = src.brand || '';
+  form.category.value = src.category;
+  fillSubs(src.category, src.sub);
+  form.short.value = src.short || '';
+  form.description.value = (src.description || []).join('\n\n');
+  form.features.value = (src.features || []).join('\n');
+  form.specs.value = Object.entries(src.specs || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+  form.uses.value = (src.uses || []).join('\n');
+  form.art.value = src.art || 'meter-cup';
+  form.price.value = src.price != null ? src.price : '';
+  form.oldPrice.value = src.oldPrice || '';
+  form.stock.value = src.stock || 'InStock';
+  form.featured.checked = !!src.featured;
   updateShortCount();
 
   setPhoto(null);
-  if (p.image) {
-    if (p.image.startsWith('fsimg:')) {
-      setPhoto({ image: p.image, preview: p.thumb || '', thumb: p.thumb || '' });
-      getDoc(doc(db, 'images', p.image.slice(6))).then((d) => {
-        if (d.exists() && state.photo && state.photo.image === p.image) { state.photo.preview = d.data().data; $('[data-photo-img]').src = d.data().data; }
+  if (src.image) {
+    if (src.image.startsWith('fsimg:')) {
+      setPhoto({ image: src.image, preview: src.thumb || '', thumb: src.thumb || '' });
+      getDoc(doc(db, 'images', src.image.slice(6))).then((d) => {
+        if (d.exists() && state.photo && state.photo.image === src.image) { state.photo.preview = d.data().data; $('[data-photo-img]').src = d.data().data; }
       });
     } else {
-      setPhoto({ image: p.image, preview: p.image, thumb: '' });
+      setPhoto({ image: src.image, preview: src.image, thumb: '' });
     }
   }
 
   const live = $('[data-view-live]');
   live.hidden = isNew;
-  if (!isNew) live.href = `/products/${p.slug}/`;
+  if (!isNew) live.href = `/products/${src.slug}/`;
   $('[data-delete]').hidden = isNew;
   $('[data-form-error]').hidden = true;
   $$('[aria-invalid]', form).forEach((el) => el.removeAttribute('aria-invalid'));
   $('[data-upload-status]').textContent = 'JPG, PNG or WebP. Photos are resized automatically.';
-  state.dirty = false;
+  state.dirty = !!copyOf;
   show('edit');
   if (isNew) form.name.focus();
 }
@@ -383,20 +528,23 @@ async function removeImageIfUnused(image, exceptSlug) {
   try { await deleteDoc(doc(db, 'images', image.slice(6))); } catch { /* not critical */ }
 }
 
-$('[data-delete]').addEventListener('click', async () => {
-  const p = state.editing;
-  if (!p || !confirm(`Delete "${p.name}"? Its page will be removed from the shop when you publish.`)) return;
+async function deleteProduct(p) {
+  if (!p || !confirm(`Delete "${p.name}"? Its page will be removed from the shop when you publish.`)) return false;
   try {
     await deleteDoc(doc(db, 'products', p.slug));
     state.products = state.products.filter((x) => x.slug !== p.slug);
     await removeImageIfUnused(p.image, p.slug);
-    state.dirty = false;
     markPending();
     toast('Product deleted. Click Publish to update the website.');
-    location.hash = '#/';
+    if (location.hash === '#/' || location.hash === '') renderList();
+    return true;
   } catch (x) {
     toast(friendly(x), true);
+    return false;
   }
+}
+$('[data-delete]').addEventListener('click', async () => {
+  if (await deleteProduct(state.editing)) { state.dirty = false; location.hash = '#/'; }
 });
 $('[data-back]').addEventListener('click', () => { location.hash = '#/'; });
 
@@ -452,7 +600,7 @@ $('[data-remove-photo]').addEventListener('click', () => { setPhoto(null); state
 
 // ---------- orders ----------
 async function loadOrders() {
-  const snap = await getDocs(query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(200)));
+  const snap = await getDocs(query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(500)));
   state.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   updateBadges();
 }
@@ -528,7 +676,7 @@ function renderMessages() {
       <p class="item-msg">${esc(m.message)}</p>
       <div class="item-actions">
         ${m.status === 'new' ? `<button type="button" class="btn btn-sm" data-msg-read="${esc(m.id)}">Mark as read</button>` : ''}
-        ${m.phone ? `<a class="btn btn-sm btn-ghost" href="https://wa.me/${esc(waNumber(m.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+        ${m.phone ? `<a class="btn btn-sm btn-outline" href="https://wa.me/${esc(waNumber(m.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
         <button type="button" class="link danger" data-msg-delete="${esc(m.id)}">Delete</button>
       </div>
     </article>`).join('') : '<p class="muted card">No messages yet. Contact-form messages appear here.</p>';
@@ -552,10 +700,96 @@ $('[data-messages]').addEventListener('click', async (e) => {
 });
 
 function updateBadges() {
-  const set = (sel, n) => { const b = $(sel); b.textContent = n; b.hidden = !n; };
+  const set = (sel, n) => $$(sel).forEach((b) => { b.textContent = n; b.hidden = !n; });
   set('[data-count-orders]', state.orders.filter((o) => o.status === 'new').length);
   set('[data-count-messages]', state.messages.filter((m) => m.status === 'new').length);
 }
+
+// ---------- overview ----------
+function renderOverview() {
+  const live = state.orders.filter((o) => o.status !== 'cancelled');
+  const since = Date.now() - 30 * 864e5;
+  const recentRevenue = live.filter((o) => toDate(o.createdAt) && toDate(o.createdAt).getTime() >= since).reduce((s, o) => s + (o.subtotal || 0), 0);
+  const newOrders = state.orders.filter((o) => o.status === 'new').length;
+  const newMsgs = state.messages.filter((m) => m.status === 'new').length;
+  const stat = (tone, ic, label, value, href) => `<a class="stat ${tone}" href="${href}"><span class="stat-ico${ic === 'check' ? ' solid' : ''}">${icon(ic)}</span><span class="stat-body"><small>${label}</small><b>${value}</b></span>${icon('chev', 'i stat-go')}</a>`;
+  $('[data-overview-stats]').innerHTML =
+    stat('tone-green', 'box', 'Products', state.products.length, '#/') +
+    stat('tone-orange', 'truck', 'New orders', newOrders, '#/orders') +
+    stat('tone-green', 'cash', 'Order value (30 days)', money(recentRevenue), '#/orders') +
+    stat('tone-red', 'mail', 'Unread messages', newMsgs, '#/messages');
+
+  const recent = state.orders.slice(0, 5);
+  $('[data-recent-orders]').innerHTML = recent.length ? recent.map((o) => `<div class="mini">
+      <div><b>${esc((o.customer || {}).name || o.ref)}</b><div class="sub">${esc(o.ref)} · ${esc(when(o.createdAt))}</div></div>
+      <div style="text-align:right"><b>${money(o.subtotal)}</b><div><span class="status ${esc(o.status)}">${esc(o.status)}</span></div></div>
+    </div>`).join('') : '<p class="muted">No orders yet.</p>';
+
+  const out = state.products.filter((p) => p.stock === 'OutOfStock').length;
+  const noPhoto = state.products.filter((p) => !p.image).length;
+  const todo = [
+    [newOrders, 'New orders to confirm', '#/orders', true],
+    [newMsgs, 'Unread messages', '#/messages', true],
+    [out, 'Products out of stock', '#/', false],
+    [noPhoto, 'Products without a real photo', '#/', false],
+  ].filter(([n]) => n > 0);
+  $('[data-todo]').innerHTML = todo.length
+    ? todo.map(([n, label, href, warn]) => `<li class="${warn ? 'warn' : ''}"><a href="${href}"${label.includes('stock') ? ' data-goto-stock="OutOfStock"' : ''}>${label}<b class="count">${n}</b></a></li>`).join('')
+    : '<li class="muted">All caught up.</li>';
+  if ($('[data-publish]').classList.contains('pending')) {
+    $('[data-todo]').insertAdjacentHTML('afterbegin', '<li class="warn"><a href="#" data-do-publish>Unpublished changes — publish now<b class="count">!</b></a></li>');
+  }
+}
+$('[data-todo]').addEventListener('click', (e) => {
+  if (e.target.closest('[data-do-publish]')) { e.preventDefault(); $('[data-publish]').click(); }
+  const s = e.target.closest('[data-goto-stock]');
+  if (s) { $('[data-filter-stock]').value = s.getAttribute('data-goto-stock'); state.page = 1; }
+});
+
+// ---------- categories ----------
+function renderCategories() {
+  const n = (fn) => state.products.filter(fn).length;
+  $('[data-categories]').innerHTML = meta.categories.map((c) => `<div class="card cat-card">
+      <h2><a href="/${esc(c.slug)}/" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(c.name)}</a><span class="badge-n">${n((p) => p.category === c.slug)}</span></h2>
+      <ul>${c.subs.map((s) => `<li><a href="/${esc(c.slug)}/${esc(s.slug)}/" target="_blank" rel="noopener">${esc(s.name)}</a><span class="badge-n">${n((p) => p.sub === s.slug)}</span></li>`).join('')}</ul>
+    </div>`).join('');
+}
+
+// ---------- customers (built from orders) ----------
+function customerList() {
+  const map = new Map();
+  for (const o of state.orders) {
+    const c = o.customer || {};
+    const key = waNumber(c.phone) || (c.name || '').toLowerCase();
+    if (!key) continue;
+    const cur = map.get(key) || { name: c.name, phone: c.phone, city: c.city, address: c.address, orders: 0, total: 0, last: null };
+    cur.orders += 1;
+    if (o.status !== 'cancelled') cur.total += o.subtotal || 0;
+    const d = toDate(o.createdAt);
+    if (d && (!cur.last || d > cur.last)) { cur.last = d; cur.name = c.name || cur.name; cur.city = c.city || cur.city; cur.address = c.address || cur.address; }
+    map.set(key, cur);
+  }
+  return [...map.values()].sort((a, b) => (b.last || 0) - (a.last || 0));
+}
+function renderCustomers() {
+  const list = customerList();
+  $('[data-customers]').innerHTML = list.map((c) => `<tr>
+      <td><b>${esc(c.name)}</b><div class="sub">${esc(c.phone)}</div></td>
+      <td>${esc(c.city)}</td>
+      <td>${c.orders}</td>
+      <td class="price-cell">${money(c.total)}</td>
+      <td>${c.last ? esc(c.last.toLocaleDateString('en-GB', { dateStyle: 'medium' })) : ''}</td>
+      <td class="c"><a class="btn btn-sm" href="https://wa.me/${esc(waNumber(c.phone))}" target="_blank" rel="noopener">WhatsApp</a></td>
+    </tr>`).join('');
+  $('[data-customers-empty]').hidden = list.length > 0;
+}
+$('[data-export-customers]').addEventListener('click', () => {
+  const list = customerList();
+  download(`u-farm-customers-${new Date().toISOString().slice(0, 10)}.csv`, [
+    ['Name', 'Phone', 'Town/City', 'Address', 'Orders', 'Total spent (NGN)', 'Last order'],
+    ...list.map((c) => [c.name, c.phone, c.city, c.address, c.orders, c.total, c.last ? c.last.toISOString().slice(0, 10) : '']),
+  ]);
+});
 
 // ---------- settings ----------
 const settingsForm = $('[data-settings]');
@@ -610,13 +844,21 @@ async function route() {
   const h = location.hash || '#/';
   try {
     if (h === '#/new') return openEditor(null);
-    const m = /^#\/edit\/(.+)$/.exec(h);
+    let m = /^#\/edit\/(.+)$/.exec(h);
     if (m) {
       const p = state.products.find((x) => x.slug === decodeURIComponent(m[1]));
       if (p) return openEditor(p);
     }
+    m = /^#\/duplicate\/(.+)$/.exec(h);
+    if (m) {
+      const p = state.products.find((x) => x.slug === decodeURIComponent(m[1]));
+      if (p) return openEditor(null, p);
+    }
+    if (h === '#/overview') { show('overview'); await Promise.all([loadOrders(), loadMessages()]); renderOverview(); return; }
     if (h === '#/orders') { show('orders'); await loadOrders(); renderOrders(); return; }
     if (h === '#/messages') { show('messages'); await loadMessages(); renderMessages(); return; }
+    if (h === '#/categories') { show('categories'); renderCategories(); return; }
+    if (h === '#/customers') { show('customers'); await loadOrders(); renderCustomers(); return; }
     if (h === '#/settings') { show('settings'); await openSettings(); return; }
     renderList();
     show('list');
@@ -627,7 +869,7 @@ async function route() {
 
 let lastHash = location.hash;
 window.addEventListener('hashchange', () => {
-  const leavingEditor = /^#\/(new|edit\/)/.test(lastHash);
+  const leavingEditor = /^#\/(new|edit\/|duplicate\/)/.test(lastHash);
   if (leavingEditor && state.dirty && !confirm('You have unsaved changes. Leave without saving?')) {
     history.replaceState(null, '', lastHash);
     return;
