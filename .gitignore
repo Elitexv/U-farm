@@ -1,0 +1,5 @@
+dist/
+dist.tmp/
+node_modules/
+admin.config.json
+*.tmp

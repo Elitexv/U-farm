@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>U-farm Admin</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/admin/"><img src="/favicon.svg" alt="" width="32" height="32"> U-farm <span>Admin</span></a>
+  <nav class="bar-actions" data-authed hidden>
+    <a href="/" target="_blank" rel="noopener">View shop ↗</a>
+    <button type="button" class="link" data-logout>Log out</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <!-- Login -->
+  <section class="login" data-view="login" hidden>
+    <form class="card login-card" data-login>
+      <h1>Admin login</h1>
+      <p class="muted">Manage products, prices, stock and photos.</p>
+      <label>Password <input type="password" name="password" autocomplete="current-password" required autofocus></label>
+      <p class="error" data-login-error hidden></p>
+      <button class="btn btn-block" type="submit">Log in</button>
+    </form>
+  </section>
+
+  <!-- Product list -->
+  <section data-view="list" hidden>
+    <div class="head">
+      <div>
+        <h1>Products</h1>
+        <p class="muted" data-stats></p>
+      </div>
+      <button type="button" class="btn btn-accent" data-new>+ Add product</button>
+    </div>
+    <div class="filters">
+      <input type="search" placeholder="Search name, SKU or brand…" data-search aria-label="Search products">
+      <select data-filter-cat aria-label="Filter by category"><option value="">All categories</option></select>
+      <select data-filter-stock aria-label="Filter by stock">
+        <option value="">Any stock</option>
+        <option value="InStock">In stock</option>
+        <option value="PreOrder">Pre-order</option>
+        <option value="OutOfStock">Out of stock</option>
+      </select>
+    </div>
+    <div class="card table-card">
+      <table class="table">
+        <thead><tr><th></th><th>Product</th><th>Category</th><th class="num">Price</th><th>Stock</th><th>Featured</th><th></th></tr></thead>
+        <tbody data-rows></tbody>
+      </table>
+      <p class="empty muted" data-empty hidden>No products match.</p>
+    </div>
+  </section>
+
+  <!-- Editor -->
+  <section data-view="edit" hidden>
+    <div class="head">
+      <div>
+        <button type="button" class="link" data-back>← All products</button>
+        <h1 data-edit-title>Add product</h1>
+      </div>
+      <a class="link" data-view-live target="_blank" rel="noopener" hidden>View on shop ↗</a>
+    </div>
+
+    <form class="editor" data-editor novalidate>
+      <div class="col-main">
+        <div class="card">
+          <h2>Basics</h2>
+          <label>Product name <span class="req">*</span>
+            <input name="name" required maxlength="120" placeholder="e.g. Aqua-Boy KAM III Cocoa Moisture Meter">
+          </label>
+          <div class="row">
+            <label>URL slug <span class="req">*</span>
+              <input name="slug" required maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*">
+              <small class="muted" data-slug-hint>Page address: /products/<b data-slug-preview>…</b>/</small>
+            </label>
+            <label>SKU <span class="req">*</span><input name="sku" required maxlength="40" placeholder="e.g. AB-KAMIII"></label>
+          </div>
+          <div class="row">
+            <label>Category <span class="req">*</span><select name="category" required></select></label>
+            <label>Sub-category <span class="req">*</span><select name="sub" required></select></label>
+          </div>
+          <label>Brand <small class="muted">(leave empty for U-farm)</small><input name="brand" maxlength="60" placeholder="e.g. Aqua-Boy"></label>
+          <label>Short description <span class="req">*</span> <small class="muted" data-short-count></small>
+            <textarea name="short" rows="2" maxlength="300" required placeholder="One or two sentences shown on product cards and in Google results."></textarea>
+          </label>
+        </div>
+
+        <div class="card">
+          <h2>Details</h2>
+          <label>Full description <small class="muted">— leave a blank line between paragraphs</small>
+            <textarea name="description" rows="6"></textarea>
+          </label>
+          <label>Key features <small class="muted">— one per line</small>
+            <textarea name="features" rows="5" placeholder="Cocoa scale 2% – 20%&#10;Stainless cup electrode included"></textarea>
+          </label>
+          <label>Specifications <small class="muted">— one per line as <code>Name: Value</code></small>
+            <textarea name="specs" rows="6" placeholder="Measuring range: 2% – 20%&#10;Power: 9 V battery&#10;Weight: 400 g"></textarea>
+          </label>
+          <label>Ideal for <small class="muted">— one per line (shown as tags)</small>
+            <textarea name="uses" rows="3" placeholder="Cocoa beans&#10;Sheanuts"></textarea>
+          </label>
+        </div>
+      </div>
+
+      <div class="col-side">
+        <div class="card">
+          <h2>Photo</h2>
+          <div class="photo" data-photo>
+            <img alt="" data-photo-img hidden>
+            <p class="muted" data-photo-empty>No photo — an illustration is used.</p>
+          </div>
+          <input type="hidden" name="image">
+          <div class="photo-actions">
+            <label class="btn btn-ghost btn-sm file-btn">Upload photo<input type="file" accept="image/png,image/jpeg,image/webp" data-file hidden></label>
+            <button type="button" class="link danger" data-remove-photo hidden>Remove photo</button>
+          </div>
+          <p class="muted small" data-upload-status>JPG, PNG or WebP. Large photos are resized automatically.</p>
+          <label data-art-wrap>Illustration (when no photo)<select name="art"></select></label>
+        </div>
+
+        <div class="card">
+          <h2>Price &amp; stock</h2>
+          <label>Price (<span data-cur></span>) <span class="req">*</span><input name="price" type="number" min="0" step="1" required inputmode="numeric"></label>
+          <label>Was price (<span data-cur></span>) <small class="muted">optional — shows a sale badge</small><input name="oldPrice" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label>Stock
+            <select name="stock">
+              <option value="InStock">In stock</option>
+              <option value="PreOrder">Pre-order</option>
+              <option value="OutOfStock">Out of stock</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" name="featured"> Feature on the home page</label>
+        </div>
+
+        <div class="card sticky">
+          <p class="error" data-form-error hidden></p>
+          <button class="btn btn-accent btn-block" type="submit" data-save>Save &amp; publish</button>
+          <button type="button" class="link danger" data-delete hidden>Delete this product</button>
+        </div>
+      </div>
+    </form>
+  </section>
+</main>
+
+<div class="toast" data-toast role="status" hidden></div>
+<script src="/admin/admin.js" defer></script>
+</body>
+</html>

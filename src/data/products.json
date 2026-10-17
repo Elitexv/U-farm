@@ -1,0 +1,1172 @@
+[
+  {
+    "slug": "gm200-digital-grain-moisture-meter",
+    "name": "GM-200 Digital Grain Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "grain-moisture-meters",
+    "sku": "UF-GM200",
+    "price": 293000,
+    "oldPrice": 355000,
+    "art": "meter-cup",
+    "featured": true,
+    "stock": "InStock",
+    "short": "Cup-style digital grain tester with 36 built-in crop calibrations, automatic temperature compensation and ±0.5% accuracy.",
+    "description": [
+      "The GM-200 is our best-selling grain moisture meter for farmers, traders and storage managers. Pour a sample into the measuring cup, choose the crop, and get a temperature-corrected reading in under five seconds.",
+      "Built-in calibrations cover maize (corn), wheat, paddy and milled rice, soybeans, sorghum, millet, barley, beans, groundnuts and more. A large backlit display makes it easy to read in a dark store or bright field."
+    ],
+    "features": [
+      "36 crop calibrations including maize, wheat, rice, paddy and soybeans",
+      "Accuracy ±0.5% against oven reference in normal range",
+      "Automatic temperature compensation",
+      "Averages up to 10 readings for consistent results",
+      "Backlit LCD and carry case included"
+    ],
+    "specs": {
+      "Measuring range": "5% – 40% (crop dependent)",
+      "Accuracy": "±0.5%",
+      "Resolution": "0.1%",
+      "Operating temperature": "0 – 40 °C",
+      "Power": "4 × AA batteries",
+      "Weight": "420 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Maize / corn",
+      "Wheat",
+      "Rice & paddy",
+      "Soybeans",
+      "Sorghum & millet",
+      "Beans & pulses"
+    ]
+  },
+  {
+    "slug": "gp50-grain-probe-moisture-tester",
+    "name": "GP-50 Grain Probe Moisture Tester",
+    "category": "moisture-meters",
+    "sub": "grain-moisture-meters",
+    "sku": "UF-GP50",
+    "price": 107000,
+    "art": "meter-probe",
+    "stock": "InStock",
+    "short": "Pocket probe meter you push straight into grain bags and heaps — fast spot checks at the market or store.",
+    "description": [
+      "The GP-50 is a compact probe-style grain moisture tester for quick checks without taking samples. Push the stainless probe into a bag, heap or trailer and read moisture instantly.",
+      "Ideal for buyers checking deliveries, for spot-testing many bags quickly, and for farmers who need a low-cost meter at harvest."
+    ],
+    "features": [
+      "Stainless steel probe goes straight into bags",
+      "8 crop settings for common cereals and pulses",
+      "Fits in a pocket, weighs under 200 g",
+      "Auto power-off saves battery"
+    ],
+    "specs": {
+      "Measuring range": "8% – 35%",
+      "Accuracy": "±1.0%",
+      "Probe length": "160 mm",
+      "Power": "9 V battery",
+      "Weight": "180 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Bagged maize & wheat",
+      "Rice",
+      "Beans",
+      "Quick market checks"
+    ]
+  },
+  {
+    "slug": "hm20-hay-moisture-meter",
+    "name": "HM-20 Hay Moisture Meter with 20\" Probe",
+    "category": "moisture-meters",
+    "sub": "hay-moisture-meters",
+    "sku": "UF-HM20",
+    "price": 246500,
+    "art": "meter-probe",
+    "featured": true,
+    "stock": "InStock",
+    "short": "Test windrows and small square bales before you bale or stack. 20-inch stainless probe reads deep inside the hay.",
+    "description": [
+      "Baling hay too wet leads to mould, dust, lost feed value and — in the worst case — barn fires from spontaneous heating. The HM-20 tells you when your hay is ready.",
+      "The 20-inch (50 cm) stainless steel probe reaches the centre of small square bales and deep into windrows. Choose from alfalfa, grass hay and straw scales for accurate results."
+    ],
+    "features": [
+      "20\" (50 cm) hardened stainless steel probe",
+      "Alfalfa, grass hay and straw scales",
+      "Reads 6% – 40% moisture",
+      "Hold function freezes the reading",
+      "Rugged case with belt clip"
+    ],
+    "specs": {
+      "Measuring range": "6% – 40%",
+      "Accuracy": "±1.0% (8% – 30%)",
+      "Probe length": "500 mm",
+      "Power": "9 V battery",
+      "Weight": "520 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Alfalfa / lucerne",
+      "Grass hay",
+      "Straw",
+      "Windrows",
+      "Small square bales"
+    ]
+  },
+  {
+    "slug": "hm36-round-bale-moisture-probe",
+    "name": "HM-36 Round Bale Moisture Probe",
+    "category": "moisture-meters",
+    "sub": "hay-moisture-meters",
+    "sku": "UF-HM36",
+    "price": 339500,
+    "art": "meter-probe",
+    "stock": "InStock",
+    "short": "Extra-long 36\" probe for large round and big square bales, with a built-in temperature reading to spot heating bales.",
+    "description": [
+      "Large bales can look dry on the outside while heating in the core. The HM-36 reaches the centre of round and big square bales and shows both moisture and core temperature.",
+      "Monitor stacks for the first weeks after baling: a steadily rising core temperature is an early warning sign that a bale is heating."
+    ],
+    "features": [
+      "36\" (90 cm) probe with T-handle",
+      "Moisture and core temperature on one display",
+      "High-temperature alarm",
+      "Alfalfa, grass and straw scales"
+    ],
+    "specs": {
+      "Measuring range": "6% – 40%",
+      "Temperature range": "0 – 90 °C",
+      "Probe length": "900 mm",
+      "Power": "9 V battery",
+      "Weight": "1.1 kg",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Large round bales",
+      "Big square bales",
+      "Haylage monitoring",
+      "Stack temperature checks"
+    ]
+  },
+  {
+    "slug": "sm3-soil-moisture-ph-light-meter",
+    "name": "SM-3 3-in-1 Soil Moisture, pH & Light Meter",
+    "category": "moisture-meters",
+    "sub": "soil-moisture-meters",
+    "sku": "UF-SM3",
+    "price": 29500,
+    "art": "meter-dial",
+    "stock": "InStock",
+    "short": "No-battery analog meter for gardens, nurseries and pots. Check soil moisture, pH and light in seconds.",
+    "description": [
+      "A simple, low-cost way to stop over- and under-watering. Push the probes into the soil, flip the switch, and read moisture, pH or light on the dial.",
+      "Perfect for kitchen gardens, seedling nurseries, potted plants and greenhouse beds. No batteries needed."
+    ],
+    "features": [
+      "Three readings: moisture, pH and light",
+      "No batteries required",
+      "20 cm probes for the root zone",
+      "Clear colour-coded dial"
+    ],
+    "specs": {
+      "Moisture scale": "1 (dry) – 10 (wet)",
+      "pH range": "3.5 – 8",
+      "Probe length": "200 mm",
+      "Power": "None needed",
+      "Weight": "90 g"
+    },
+    "uses": [
+      "Vegetable gardens",
+      "Nurseries",
+      "Potted plants",
+      "Greenhouses"
+    ]
+  },
+  {
+    "slug": "sm100-digital-soil-moisture-meter",
+    "name": "SM-100 Digital Soil Moisture Meter (VWC)",
+    "category": "moisture-meters",
+    "sub": "soil-moisture-meters",
+    "sku": "UF-SM100",
+    "price": 200000,
+    "art": "meter-pins",
+    "featured": true,
+    "stock": "InStock",
+    "short": "Measures volumetric water content (VWC %) and soil temperature for precise irrigation scheduling in fields and greenhouses.",
+    "description": [
+      "The SM-100 gives a true volumetric water content reading so you can schedule irrigation by numbers rather than by feel. Readings are comparable across fields and seasons.",
+      "Stainless steel rods measure the root zone in seconds. Use it to find dry spots, check drip lines, and decide exactly when to switch on the pump."
+    ],
+    "features": [
+      "Volumetric water content 0% – 60%",
+      "Soil temperature reading",
+      "Settings for mineral, sandy and clay soils",
+      "Stores 99 readings"
+    ],
+    "specs": {
+      "Measuring range": "0% – 60% VWC",
+      "Accuracy": "±3% VWC",
+      "Rod length": "120 mm",
+      "Power": "2 × AA batteries",
+      "Weight": "260 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Irrigation scheduling",
+      "Drip system checks",
+      "Greenhouses",
+      "Orchards & vineyards"
+    ]
+  },
+  {
+    "slug": "wm10-firewood-moisture-meter",
+    "name": "WM-10 Pin Wood & Firewood Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "wood-moisture-meters",
+    "sku": "UF-WM10",
+    "price": 60500,
+    "art": "meter-pins",
+    "featured": true,
+    "stock": "InStock",
+    "short": "Know when firewood is seasoned and ready to burn. Pin meter with softwood and hardwood scales.",
+    "description": [
+      "Firewood should be below 20% moisture to burn hot and clean. The WM-10 tells you in two seconds whether a log is ready, so you stop wasting heat and building up creosote.",
+      "Split a log and test the fresh face for a true reading. Also works on lumber, sawn timber and building materials."
+    ],
+    "features": [
+      "Softwood, hardwood and building-material scales",
+      "Replaceable stainless pins",
+      "Backlit display with hold button",
+      "Pocket size with protective cap"
+    ],
+    "specs": {
+      "Measuring range": "5% – 50% (wood)",
+      "Accuracy": "±2%",
+      "Pin length": "8 mm",
+      "Power": "3 × AAA batteries",
+      "Weight": "120 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Firewood",
+      "Lumber & timber",
+      "Fence posts",
+      "Woodworking"
+    ]
+  },
+  {
+    "slug": "wm-pro-pinless-wood-moisture-meter",
+    "name": "WM-Pro Pinless Wood Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "wood-moisture-meters",
+    "sku": "UF-WMPRO",
+    "price": 231000,
+    "art": "meter-pad",
+    "stock": "InStock",
+    "short": "Scan wood without holes. Pinless meter with species settings for flooring, furniture and finished timber.",
+    "description": [
+      "The WM-Pro uses an electromagnetic sensor pad to read moisture up to 20 mm below the surface without damaging the wood. Scan whole boards in seconds.",
+      "Species-group settings and a relative mode make it the right choice for flooring installers, furniture makers and anyone checking finished timber."
+    ],
+    "features": [
+      "Non-damaging pinless sensor",
+      "Reads up to 20 mm deep",
+      "Species-group settings",
+      "Relative mode for drywall and other materials"
+    ],
+    "specs": {
+      "Measuring range": "4% – 30% (wood)",
+      "Accuracy": "±1.5%",
+      "Sensing depth": "20 mm",
+      "Power": "9 V battery",
+      "Weight": "210 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Hardwood flooring",
+      "Furniture making",
+      "Kiln-dried lumber",
+      "Finished timber"
+    ]
+  },
+  {
+    "slug": "cm30-coffee-cocoa-moisture-meter",
+    "name": "CM-30 Coffee & Cocoa Bean Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "specialty-moisture-meters",
+    "sku": "UF-CM30",
+    "price": 463500,
+    "art": "meter-cup",
+    "featured": true,
+    "stock": "InStock",
+    "short": "Calibrated for parchment and green coffee, cocoa beans and cashew. Dry to export standard and avoid rejected lots.",
+    "description": [
+      "Coffee and cocoa buyers usually set a maximum moisture of around 11–12% for green coffee and about 7.5% for cocoa beans. Over-dried beans lose weight and quality; under-dried beans go mouldy. The CM-30 helps you hit the target every time.",
+      "Calibrations for parchment coffee, green coffee, cocoa beans, cashew nuts and pepper. Ideal for farmers, cooperatives, washing stations and exporters."
+    ],
+    "features": [
+      "Parchment coffee, green coffee and cocoa calibrations",
+      "Additional scales for cashew, pepper and cardamom",
+      "Large sample cup for representative readings",
+      "Automatic temperature compensation"
+    ],
+    "specs": {
+      "Measuring range": "4% – 40% (crop dependent)",
+      "Accuracy": "±0.5%",
+      "Resolution": "0.1%",
+      "Power": "4 × AA batteries",
+      "Weight": "480 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Parchment coffee",
+      "Green coffee",
+      "Cocoa beans",
+      "Cashew nuts",
+      "Pepper & spices"
+    ]
+  },
+  {
+    "slug": "ct40-cotton-moisture-meter",
+    "name": "CT-40 Cotton Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "specialty-moisture-meters",
+    "sku": "UF-CT40",
+    "price": 386000,
+    "art": "meter-probe",
+    "stock": "InStock",
+    "short": "Probe meter for seed cotton, lint and bales. Check modules and bales before ginning and storage.",
+    "description": [
+      "Cotton picked or stored too wet loses grade and can heat in modules. The CT-40 checks seed cotton, lint and bales quickly with a long stainless probe.",
+      "A reliable tool for growers, ginners and cotton buyers who need fast, consistent readings in the field and at the gin."
+    ],
+    "features": [
+      "Seed cotton, lint and bale scales",
+      "300 mm stainless probe",
+      "Temperature compensated",
+      "Hold and average functions"
+    ],
+    "specs": {
+      "Measuring range": "5% – 40%",
+      "Accuracy": "±0.5%",
+      "Probe length": "300 mm",
+      "Power": "9 V battery",
+      "Weight": "360 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Seed cotton",
+      "Cotton lint",
+      "Cotton bales",
+      "Gin intake checks"
+    ]
+  },
+  {
+    "slug": "sd25-seed-nut-moisture-meter",
+    "name": "SD-25 Seed & Nut Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "specialty-moisture-meters",
+    "sku": "UF-SD25",
+    "price": 339500,
+    "art": "meter-cup",
+    "stock": "InStock",
+    "short": "Calibrations for vegetable and field seeds, groundnuts, sesame, sunflower and other oilseeds.",
+    "description": [
+      "Seed viability drops fast when stored too moist. The SD-25 is calibrated for small seeds and oilseeds that general grain meters struggle with.",
+      "Used by seed producers, seed banks and oilseed buyers to keep storage moisture in the safe range."
+    ],
+    "features": [
+      "Settings for vegetable seeds, oilseeds and nuts",
+      "Small-sample cup for expensive seed",
+      "Automatic temperature compensation",
+      "Reading memory and average"
+    ],
+    "specs": {
+      "Measuring range": "3% – 35% (crop dependent)",
+      "Accuracy": "±0.5%",
+      "Power": "4 × AA batteries",
+      "Weight": "410 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Vegetable seeds",
+      "Groundnuts",
+      "Sesame",
+      "Sunflower",
+      "Canola / rapeseed"
+    ]
+  },
+  {
+    "slug": "bm60-concrete-building-moisture-meter",
+    "name": "BM-60 Concrete & Building Moisture Meter",
+    "category": "moisture-meters",
+    "sub": "building-moisture-meters",
+    "sku": "UF-BM60",
+    "price": 184500,
+    "art": "meter-pad",
+    "stock": "InStock",
+    "short": "Non-destructive scanner for concrete floors, block, plaster and drywall. Find damp in stores and barns before it spreads.",
+    "description": [
+      "Damp in a feed store or grain shed ruins stock. The BM-60 scans concrete, screed, block walls, plaster and drywall without drilling to find hidden moisture and leaks.",
+      "Use it to check floors before laying coverings and to monitor storage buildings after heavy rain."
+    ],
+    "features": [
+      "Concrete, screed, plaster and drywall modes",
+      "Reads up to 40 mm deep",
+      "Audible alarm at set moisture",
+      "Relative scale for leak tracing"
+    ],
+    "specs": {
+      "Measuring range": "0% – 6% (concrete CM equivalent)",
+      "Sensing depth": "40 mm",
+      "Power": "9 V battery",
+      "Weight": "230 g",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Concrete floors",
+      "Grain & feed stores",
+      "Walls & plaster",
+      "Leak detection"
+    ]
+  },
+  {
+    "slug": "aqua-boy-kam-iii-cocoa-moisture-meter",
+    "name": "Aqua-Boy KAM III Cocoa Moisture Meter (with Cup Electrode)",
+    "brand": "Aqua-Boy",
+    "category": "moisture-meters",
+    "sub": "aqua-boy-moisture-meters",
+    "sku": "AB-KAMIII",
+    "price": 1900000,
+    "image": "/assets/img/products/aqua-boy/aqua-boy-kam-iii-cocoa-moisture-meter.jpg",
+    "featured": true,
+    "stock": "InStock",
+    "short": "The cocoa trade standard. Reads cocoa beans and sheanuts from 2–20% and rice from 10–20%. Supplied with the stainless cup electrode.",
+    "description": [
+      "The Aqua-Boy KAM III is the most popular cocoa moisture meter among buyers, LBAs and warehouses. Fill the stainless cup electrode with beans, tighten the knurled cap to the stop for consistent pressure, and read moisture straight off the cocoa scale.",
+      "Cocoa for export is normally graded at a maximum of about 7.5% moisture. The KAM III lets farmers dry to the target and lets buyers check every delivery before payment.",
+      "Every Aqua-Boy is made in Germany by KPM (K.P. Mundinger GmbH). It is an analogue meter: the needle points to moisture in percent on a scale printed for this material, so there are no menus or crop codes to get wrong. It runs on a single 9 V battery."
+    ],
+    "features": [
+      "Cocoa scale 2% – 20%",
+      "Also reads sheanuts (2% – 20%) and rice (10% – 20%)",
+      "Stainless cup electrode and cable included",
+      "Genuine KPM Aqua-Boy, made in Germany",
+      "Analogue direct-reading % scale",
+      "Runs on one 9 V battery",
+      "Leather carrying case"
+    ],
+    "specs": {
+      "Measuring range": "Cocoa 2% – 20%, sheanuts 2% – 20%, rice 10% – 20%",
+      "Electrode": "Cup electrode (included)",
+      "Brand": "Aqua-Boy (KPM, Germany)",
+      "Display": "Analogue needle, direct % scale",
+      "Power": "9 V battery",
+      "Weight": "approx. 400 g",
+      "In the box": "Meter, leather case, cable, electrode, manual with comparison tables"
+    },
+    "uses": [
+      "Cocoa beans",
+      "Sheanuts",
+      "Rice",
+      "Cocoa buying & warehousing"
+    ]
+  },
+  {
+    "slug": "aqua-boy-kam-i-cocoa-moisture-meter",
+    "name": "Aqua-Boy KAM I Cocoa Moisture Meter",
+    "brand": "Aqua-Boy",
+    "category": "moisture-meters",
+    "sub": "aqua-boy-moisture-meters",
+    "sku": "AB-KAMI",
+    "price": 2450000,
+    "image": "/assets/img/products/aqua-boy/aqua-boy-kam-i-cocoa-moisture-meter.png",
+    "stock": "InStock",
+    "short": "Dedicated cocoa scale from 2–12% — high resolution right where dried, export-grade cocoa is measured.",
+    "description": [
+      "The Aqua-Boy KAM I spreads its scale over the 2–12% band where dried cocoa is traded, making it easy to see the difference between beans that are ready for sale and beans that need more drying.",
+      "Every Aqua-Boy is made in Germany by KPM (K.P. Mundinger GmbH). It is an analogue meter: the needle points to moisture in percent on a scale printed for this material, so there are no menus or crop codes to get wrong. It runs on a single 9 V battery."
+    ],
+    "features": [
+      "Cocoa scale 2% – 12%",
+      "Fine reading in the export-grade range",
+      "Genuine KPM Aqua-Boy, made in Germany",
+      "Analogue direct-reading % scale",
+      "Runs on one 9 V battery",
+      "Leather carrying case"
+    ],
+    "specs": {
+      "Measuring range": "Cocoa 2% – 12%",
+      "Brand": "Aqua-Boy (KPM, Germany)",
+      "Display": "Analogue needle, direct % scale",
+      "Power": "9 V battery",
+      "Weight": "approx. 400 g",
+      "In the box": "Meter, leather case, cable, electrode, manual with comparison tables"
+    },
+    "uses": [
+      "Dried cocoa beans",
+      "Pre-sale quality checks",
+      "Cocoa cooperatives"
+    ]
+  },
+  {
+    "slug": "aqua-boy-kam-iiia-cocoa-moisture-meter",
+    "name": "Aqua-Boy KAM IIIa High-Moisture Cocoa Meter",
+    "brand": "Aqua-Boy",
+    "category": "moisture-meters",
+    "sub": "aqua-boy-moisture-meters",
+    "sku": "AB-KAMIIIA",
+    "price": 3870000,
+    "image": "/assets/img/products/aqua-boy/aqua-boy-kam-iiia-cocoa-moisture-meter.png",
+    "stock": "InStock",
+    "short": "For wet and drying cocoa: reads 10–34%, plus high-moisture cocoa and cocoa shells. Track drying from fermentation to sale.",
+    "description": [
+      "Freshly fermented cocoa is far too wet for a standard cocoa meter. The Aqua-Boy KAM IIIa covers 10–34% so you can follow beans through the whole drying process and avoid mould from under-drying.",
+      "Every Aqua-Boy is made in Germany by KPM (K.P. Mundinger GmbH). It is an analogue meter: the needle points to moisture in percent on a scale printed for this material, so there are no menus or crop codes to get wrong. It runs on a single 9 V battery."
+    ],
+    "features": [
+      "Cocoa scale 10% – 34%",
+      "High-moisture cocoa and cocoa shell scales",
+      "Genuine KPM Aqua-Boy, made in Germany",
+      "Analogue direct-reading % scale",
+      "Runs on one 9 V battery",
+      "Leather carrying case"
+    ],
+    "specs": {
+      "Measuring range": "Cocoa 10% – 34%; high-moisture cocoa; cocoa shells",
+      "Brand": "Aqua-Boy (KPM, Germany)",
+      "Display": "Analogue needle, direct % scale",
+      "Power": "9 V battery",
+      "Weight": "approx. 400 g",
+      "In the box": "Meter, leather case, cable, electrode, manual with comparison tables"
+    },
+    "uses": [
+      "Fermented & wet cocoa",
+      "Sun & dryer monitoring",
+      "Cocoa shells"
+    ]
+  },
+  {
+    "slug": "aqua-boy-kaf-i-coffee-moisture-meter",
+    "name": "Aqua-Boy KAF I Raw Coffee Moisture Meter",
+    "brand": "Aqua-Boy",
+    "category": "moisture-meters",
+    "sub": "aqua-boy-moisture-meters",
+    "sku": "AB-KAFI",
+    "price": 2450000,
+    "image": "/assets/img/products/aqua-boy/aqua-boy-kaf-i-coffee-moisture-meter.png",
+    "stock": "InStock",
+    "short": "Raw (green) coffee scale from 6–18%. Dry coffee to buyer specification and avoid rejected lots.",
+    "description": [
+      "Green coffee is usually traded at around 11–12% moisture. The Aqua-Boy KAF I is calibrated for raw coffee from 6–18%, so you can check drying and storage lots quickly at the farm, washing station or warehouse.",
+      "Every Aqua-Boy is made in Germany by KPM (K.P. Mundinger GmbH). It is an analogue meter: the needle points to moisture in percent on a scale printed for this material, so there are no menus or crop codes to get wrong. It runs on a single 9 V battery."
+    ],
+    "features": [
+      "Raw coffee scale 6% – 18%",
+      "Genuine KPM Aqua-Boy, made in Germany",
+      "Analogue direct-reading % scale",
+      "Runs on one 9 V battery",
+      "Leather carrying case"
+    ],
+    "specs": {
+      "Measuring range": "Raw coffee 6% – 18%",
+      "Brand": "Aqua-Boy (KPM, Germany)",
+      "Display": "Analogue needle, direct % scale",
+      "Power": "9 V battery",
+      "Weight": "approx. 400 g",
+      "In the box": "Meter, leather case, cable, electrode, manual with comparison tables"
+    },
+    "uses": [
+      "Green coffee",
+      "Coffee drying",
+      "Export lot checks"
+    ]
+  },
+  {
+    "slug": "aqua-boy-kaf-iv-coffee-moisture-meter",
+    "name": "Aqua-Boy KAF IV Raw Coffee Moisture Meter",
+    "brand": "Aqua-Boy",
+    "category": "moisture-meters",
+    "sub": "aqua-boy-moisture-meters",
+    "sku": "AB-KAFIV",
+    "price": 2550000,
+    "image": "/assets/img/products/aqua-boy/aqua-boy-kaf-iv-coffee-moisture-meter.png",
+    "stock": "InStock",
+    "short": "Extended raw coffee scale from 6–22% — follow coffee through drying as well as at sale.",
+    "description": [
+      "The Aqua-Boy KAF IV extends the raw coffee scale to 22%, which makes it useful during drying as well as for final checks before bagging and sale.",
+      "Every Aqua-Boy is made in Germany by KPM (K.P. Mundinger GmbH). It is an analogue meter: the needle points to moisture in percent on a scale printed for this material, so there are no menus or crop codes to get wrong. It runs on a single 9 V battery."
+    ],
+    "features": [
+      "Raw coffee scale 6% – 22%",
+      "Covers drying and storage moisture",
+      "Genuine KPM Aqua-Boy, made in Germany",
+      "Analogue direct-reading % scale",
+      "Runs on one 9 V battery",
+      "Leather carrying case"
+    ],
+    "specs": {
+      "Measuring range": "Raw coffee 6% – 22%",
+      "Brand": "Aqua-Boy (KPM, Germany)",
+      "Display": "Analogue needle, direct % scale",
+      "Power": "9 V battery",
+      "Weight": "approx. 400 g",
+      "In the box": "Meter, leather case, cable, electrode, manual with comparison tables"
+    },
+    "uses": [
+      "Green coffee",
+      "Drying yards",
+      "Coffee stores"
+    ]
+  },
+  {
+    "slug": "aqua-boy-baf-i-cotton-moisture-meter",
+    "name": "Aqua-Boy BAF I Cotton Lint Moisture Meter",
+    "brand": "Aqua-Boy",
+    "category": "moisture-meters",
+    "sub": "aqua-boy-moisture-meters",
+    "sku": "AB-BAFI",
+    "price": 2450000,
+    "image": "/assets/img/products/aqua-boy/aqua-boy-baf-i-cotton-moisture-meter.png",
+    "stock": "InStock",
+    "short": "Calibrated for pure lint cotton from 2.5–13%. Built for ginneries, cotton buyers and spinners.",
+    "description": [
+      "The Aqua-Boy BAF I is calibrated specifically for pure lint cotton. Check lint before baling and bales before storage or sale to protect grade and avoid heating.",
+      "Every Aqua-Boy is made in Germany by KPM (K.P. Mundinger GmbH). It is an analogue meter: the needle points to moisture in percent on a scale printed for this material, so there are no menus or crop codes to get wrong. It runs on a single 9 V battery."
+    ],
+    "features": [
+      "Lint cotton scale 2.5% – 13%",
+      "Genuine KPM Aqua-Boy, made in Germany",
+      "Analogue direct-reading % scale",
+      "Runs on one 9 V battery",
+      "Leather carrying case"
+    ],
+    "specs": {
+      "Measuring range": "Lint cotton (pure) 2.5% – 13%",
+      "Brand": "Aqua-Boy (KPM, Germany)",
+      "Display": "Analogue needle, direct % scale",
+      "Power": "9 V battery",
+      "Weight": "approx. 400 g",
+      "In the box": "Meter, leather case, cable, electrode, manual with comparison tables"
+    },
+    "uses": [
+      "Cotton lint",
+      "Cotton bales",
+      "Ginneries"
+    ]
+  },
+  {
+    "slug": "16l-manual-knapsack-sprayer",
+    "name": "16 L Manual Knapsack Sprayer",
+    "category": "farm-equipment",
+    "sub": "sprayers",
+    "sku": "UF-KS16",
+    "price": 60500,
+    "art": "sprayer",
+    "stock": "InStock",
+    "short": "Classic lever-operated knapsack sprayer with padded straps, brass lance and three nozzles.",
+    "description": [
+      "A dependable lever-pump sprayer for herbicides, insecticides, fungicides and foliar feeds. The internal piston pump builds steady pressure with easy strokes.",
+      "Comes with adjustable cone, flat-fan and double nozzles, plus a pressure-relief valve and wide filter opening."
+    ],
+    "features": [
+      "16 L chemical-resistant tank",
+      "Brass lance and shut-off valve",
+      "Cone, flat-fan and double nozzles included",
+      "Padded adjustable straps"
+    ],
+    "specs": {
+      "Capacity": "16 L",
+      "Working pressure": "0.2 – 0.4 MPa",
+      "Lance length": "600 mm",
+      "Weight": "4.2 kg (empty)",
+      "Warranty": "6 months"
+    },
+    "uses": [
+      "Weed control",
+      "Pest control",
+      "Foliar feeding",
+      "Gardens & small farms"
+    ]
+  },
+  {
+    "slug": "20l-battery-knapsack-sprayer",
+    "name": "20 L Battery Knapsack Sprayer",
+    "category": "farm-equipment",
+    "sub": "sprayers",
+    "sku": "UF-BS20",
+    "price": 138000,
+    "oldPrice": 169000,
+    "art": "sprayer",
+    "featured": true,
+    "stock": "InStock",
+    "short": "Rechargeable 12 V sprayer — no pumping, constant pressure, up to 8 hours of spraying per charge.",
+    "description": [
+      "Spray more acres with less fatigue. The 12 V diaphragm pump delivers constant pressure for even coverage from the first litre to the last.",
+      "A 12 Ah lithium battery runs up to 8 hours, and a speed switch lets you set flow for herbicides or fine mist."
+    ],
+    "features": [
+      "12 V / 12 Ah lithium battery",
+      "Up to 8 hours per charge",
+      "Two-speed pump with constant pressure",
+      "Stainless lance with four nozzles"
+    ],
+    "specs": {
+      "Capacity": "20 L",
+      "Pump": "12 V diaphragm",
+      "Working pressure": "0.15 – 0.45 MPa",
+      "Battery": "12 V 12 Ah lithium",
+      "Weight": "5.8 kg (empty)",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Field crops",
+      "Orchards",
+      "Vegetables",
+      "Livestock sheds"
+    ]
+  },
+  {
+    "slug": "3-inch-petrol-water-pump",
+    "name": "3\" Petrol Water Pump (7 HP)",
+    "category": "farm-equipment",
+    "sub": "water-pumps",
+    "sku": "UF-WP3",
+    "price": 463500,
+    "art": "pump",
+    "featured": true,
+    "stock": "InStock",
+    "short": "High-flow 3-inch irrigation pump with 7 HP four-stroke engine. Moves up to 60,000 litres per hour.",
+    "description": [
+      "Pump from rivers, dams and shallow wells to flood, furrow or sprinkler irrigation. The 7 HP four-stroke engine starts easily and runs economically.",
+      "Self-priming cast-aluminium pump body with a full roll frame for protection on the farm."
+    ],
+    "features": [
+      "7 HP four-stroke OHV engine",
+      "Up to 60 m³/h flow",
+      "Self-priming pump body",
+      "Suction hose, strainer and clamps included"
+    ],
+    "specs": {
+      "Inlet / outlet": "3\" (80 mm)",
+      "Max flow": "60 m³/h",
+      "Max head": "28 m",
+      "Suction lift": "7 m",
+      "Fuel tank": "3.6 L",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Flood & furrow irrigation",
+      "Sprinklers",
+      "Livestock water",
+      "Drainage"
+    ]
+  },
+  {
+    "slug": "solar-surface-water-pump",
+    "name": "Solar Surface Water Pump Kit",
+    "category": "farm-equipment",
+    "sub": "water-pumps",
+    "sku": "UF-SP1",
+    "price": 696000,
+    "art": "pump",
+    "stock": "InStock",
+    "short": "Zero fuel cost irrigation. DC solar pump with controller for drip, small sprinklers and tanks.",
+    "description": [
+      "Run irrigation from the sun with no fuel and very little maintenance. The brushless DC pump connects directly to solar panels through the included controller.",
+      "Best for drip irrigation, filling storage tanks and watering livestock from surface water or shallow wells."
+    ],
+    "features": [
+      "Brushless DC motor, maintenance-free",
+      "MPPT controller included",
+      "Dry-run protection",
+      "Works with 2–4 solar panels (not included)"
+    ],
+    "specs": {
+      "Max flow": "5 m³/h",
+      "Max head": "30 m",
+      "Power": "400 W DC",
+      "Inlet / outlet": "1.25\"",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Drip irrigation",
+      "Tank filling",
+      "Livestock watering",
+      "Kitchen gardens"
+    ]
+  },
+  {
+    "slug": "electric-maize-sheller",
+    "name": "Electric Maize Sheller",
+    "category": "farm-equipment",
+    "sub": "processing-equipment",
+    "sku": "UF-MS1",
+    "price": 603000,
+    "art": "machine",
+    "stock": "InStock",
+    "short": "Shells up to 1.5 tonnes of maize per hour with low grain breakage. Electric motor with petrol-engine option.",
+    "description": [
+      "Replace days of hand shelling with an hour of machine work. The rotor strips grain cleanly from the cob while the fan separates chaff.",
+      "Low breakage keeps grain quality high for sale and storage."
+    ],
+    "features": [
+      "Up to 1.5 t/h output",
+      "Built-in cleaning fan",
+      "Low grain breakage",
+      "Wheels for easy moving"
+    ],
+    "specs": {
+      "Output": "1,000 – 1,500 kg/h",
+      "Motor": "2.2 kW electric",
+      "Shelling rate": "≥ 99%",
+      "Weight": "75 kg",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Maize / corn shelling",
+      "Cooperatives",
+      "Grain traders"
+    ]
+  },
+  {
+    "slug": "chaff-cutter-forage-chopper",
+    "name": "Chaff Cutter & Forage Chopper",
+    "category": "farm-equipment",
+    "sub": "processing-equipment",
+    "sku": "UF-CC1",
+    "price": 711500,
+    "art": "machine",
+    "stock": "InStock",
+    "short": "Chops napier grass, maize stalks, hay and straw for livestock feed. Less waste, better intake.",
+    "description": [
+      "Chopped forage is easier for livestock to eat and wastes far less in the feeder. The chaff cutter handles fresh napier grass, maize stover, hay and straw.",
+      "Adjustable chop length for cattle, goats, sheep and silage making."
+    ],
+    "features": [
+      "Chops fresh and dry forage",
+      "Adjustable cut length",
+      "Hardened replaceable blades",
+      "Electric or petrol drive"
+    ],
+    "specs": {
+      "Output": "Up to 2,000 kg/h",
+      "Motor": "3 kW electric",
+      "Cut length": "10 – 40 mm",
+      "Weight": "90 kg",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Napier grass",
+      "Maize stover",
+      "Silage making",
+      "Dairy & goat farms"
+    ]
+  },
+  {
+    "slug": "petrol-mini-tiller-cultivator",
+    "name": "Petrol Mini Tiller & Cultivator",
+    "category": "farm-equipment",
+    "sub": "tillage-planting",
+    "sku": "UF-MT7",
+    "price": 820000,
+    "art": "machine",
+    "featured": true,
+    "stock": "InStock",
+    "short": "7 HP mini tiller for land preparation, weeding and ridging on small farms and greenhouses.",
+    "description": [
+      "Prepare a field in hours instead of days. The 7 HP engine drives heavy-duty tines that break and mix soil up to 30 cm deep.",
+      "Add the ridging and furrowing attachments for potatoes, vegetables and row crops."
+    ],
+    "features": [
+      "7 HP four-stroke engine",
+      "Working width up to 100 cm",
+      "Forward and reverse gears",
+      "Folding handle for transport"
+    ],
+    "specs": {
+      "Engine": "7 HP petrol, 4-stroke",
+      "Working width": "60 – 100 cm",
+      "Working depth": "15 – 30 cm",
+      "Weight": "68 kg",
+      "Warranty": "12 months"
+    },
+    "uses": [
+      "Land preparation",
+      "Weeding between rows",
+      "Ridging",
+      "Greenhouses"
+    ]
+  },
+  {
+    "slug": "hand-push-seed-planter",
+    "name": "Hand-Push Seed Planter",
+    "category": "farm-equipment",
+    "sub": "tillage-planting",
+    "sku": "UF-SP2",
+    "price": 200000,
+    "art": "planter",
+    "stock": "InStock",
+    "short": "Plants maize, beans, groundnuts and vegetables at even spacing and depth. Interchangeable seed plates.",
+    "description": [
+      "Even spacing means even emergence and higher yields. The push planter opens the furrow, drops seed, and covers it in one pass.",
+      "Swap seed plates for maize, beans, sorghum, groundnuts and many vegetables."
+    ],
+    "features": [
+      "Six interchangeable seed plates",
+      "Adjustable depth and spacing",
+      "Plants up to 1 acre per hour",
+      "No fuel or power needed"
+    ],
+    "specs": {
+      "Hopper capacity": "3 kg",
+      "Planting depth": "2 – 8 cm",
+      "Seed spacing": "10 – 50 cm",
+      "Weight": "14 kg",
+      "Warranty": "6 months"
+    },
+    "uses": [
+      "Maize",
+      "Beans",
+      "Groundnuts",
+      "Vegetables"
+    ]
+  },
+  {
+    "slug": "forged-steel-farm-hoe",
+    "name": "Forged Steel Farm Hoe",
+    "category": "farm-tools",
+    "sub": "digging-tools",
+    "sku": "UF-HOE1",
+    "price": 28000,
+    "art": "hoe",
+    "stock": "InStock",
+    "short": "Heavy forged hoe for weeding, ridging and breaking hard soil. Hardwood handle.",
+    "description": [
+      "A drop-forged carbon steel blade that stays sharp and does not bend in hard ground. The ash hardwood handle is fitted tight for a long working life."
+    ],
+    "features": [
+      "Drop-forged carbon steel head",
+      "Hardwood handle",
+      "Pre-sharpened edge"
+    ],
+    "specs": {
+      "Blade width": "200 mm",
+      "Handle length": "1.2 m",
+      "Weight": "1.6 kg"
+    },
+    "uses": [
+      "Weeding",
+      "Ridging",
+      "Breaking ground"
+    ]
+  },
+  {
+    "slug": "round-point-spade",
+    "name": "Round-Point Digging Spade",
+    "category": "farm-tools",
+    "sub": "digging-tools",
+    "sku": "UF-SPD1",
+    "price": 37000,
+    "art": "spade",
+    "stock": "InStock",
+    "short": "Tempered steel spade with fibreglass handle for digging, trenching and planting.",
+    "description": [
+      "Rolled step lets you push hard with your boot, and the tempered round-point blade bites into compact soil. The fibreglass handle will not rot or crack."
+    ],
+    "features": [
+      "Tempered steel blade",
+      "Fibreglass handle",
+      "Rolled foot step"
+    ],
+    "specs": {
+      "Blade size": "220 × 290 mm",
+      "Overall length": "1.45 m",
+      "Weight": "2.1 kg"
+    },
+    "uses": [
+      "Digging",
+      "Planting trees",
+      "Trenching"
+    ]
+  },
+  {
+    "slug": "4-tine-digging-fork",
+    "name": "4-Tine Digging Fork",
+    "category": "farm-tools",
+    "sub": "digging-tools",
+    "sku": "UF-FRK4",
+    "price": 42000,
+    "art": "fork",
+    "stock": "InStock",
+    "short": "Forged square tines for loosening soil, lifting potatoes and turning compost.",
+    "description": [
+      "Square-section forged tines resist bending in heavy and stony ground. Ideal for loosening beds, harvesting root crops and moving compost."
+    ],
+    "features": [
+      "Forged square tines",
+      "D-grip handle",
+      "Rust-resistant coating"
+    ],
+    "specs": {
+      "Head width": "190 mm",
+      "Tine length": "280 mm",
+      "Weight": "1.9 kg"
+    },
+    "uses": [
+      "Loosening soil",
+      "Potato harvest",
+      "Compost"
+    ]
+  },
+  {
+    "slug": "bypass-pruning-shears",
+    "name": "Bypass Pruning Shears",
+    "category": "farm-tools",
+    "sub": "cutting-tools",
+    "sku": "UF-PRN1",
+    "price": 25000,
+    "art": "shears",
+    "featured": true,
+    "stock": "InStock",
+    "short": "SK5 steel bypass pruners for clean cuts on branches up to 22 mm.",
+    "description": [
+      "Clean bypass cuts heal quickly and keep fruit trees, coffee and vines healthy. The SK5 blade is hardened for a long-lasting edge, with a safety lock and comfort grips."
+    ],
+    "features": [
+      "SK5 hardened steel blade",
+      "Cuts up to 22 mm",
+      "Safety lock",
+      "Non-slip grips"
+    ],
+    "specs": {
+      "Cutting capacity": "22 mm",
+      "Length": "210 mm",
+      "Weight": "240 g"
+    },
+    "uses": [
+      "Fruit trees",
+      "Coffee & tea pruning",
+      "Vineyards",
+      "Roses & shrubs"
+    ]
+  },
+  {
+    "slug": "18-inch-machete",
+    "name": "18\" Carbon Steel Machete",
+    "category": "farm-tools",
+    "sub": "cutting-tools",
+    "sku": "UF-MCH18",
+    "price": 21500,
+    "art": "machete",
+    "stock": "InStock",
+    "short": "Tempered carbon steel machete for clearing bush, cutting cane and harvesting.",
+    "description": [
+      "A well-balanced 18-inch blade of tempered carbon steel that sharpens easily in the field. Riveted handle stays secure through heavy use."
+    ],
+    "features": [
+      "Tempered carbon steel",
+      "Riveted handle",
+      "Sheath included"
+    ],
+    "specs": {
+      "Blade length": "460 mm",
+      "Weight": "520 g"
+    },
+    "uses": [
+      "Bush clearing",
+      "Sugar cane",
+      "Banana harvesting"
+    ]
+  },
+  {
+    "slug": "serrated-harvest-sickle",
+    "name": "Serrated Harvest Sickle",
+    "category": "farm-tools",
+    "sub": "cutting-tools",
+    "sku": "UF-SCK1",
+    "price": 14000,
+    "art": "sickle",
+    "stock": "InStock",
+    "short": "Serrated sickle for harvesting rice, wheat, grass and fodder.",
+    "description": [
+      "The serrated edge grips stems and cuts cleanly without constant sharpening. A light, comfortable tool for harvesting cereals and cutting fodder."
+    ],
+    "features": [
+      "Serrated self-sharpening edge",
+      "Wooden handle",
+      "Lightweight"
+    ],
+    "specs": {
+      "Blade length": "300 mm",
+      "Weight": "180 g"
+    },
+    "uses": [
+      "Rice harvest",
+      "Wheat harvest",
+      "Fodder cutting"
+    ]
+  },
+  {
+    "slug": "heavy-duty-farm-wheelbarrow",
+    "name": "Heavy-Duty Farm Wheelbarrow 100 L",
+    "category": "farm-tools",
+    "sub": "carrying-tools",
+    "sku": "UF-WB100",
+    "price": 215500,
+    "art": "wheelbarrow",
+    "featured": true,
+    "stock": "InStock",
+    "short": "100 L steel tray, puncture-proof tyre and 200 kg load rating for daily farm work.",
+    "description": [
+      "A deep 100-litre heavy-gauge steel tray on a tubular frame, rated for 200 kg. The flat-free tyre never needs pumping — ideal for manure, feed, soil and harvest."
+    ],
+    "features": [
+      "100 L heavy-gauge steel tray",
+      "Flat-free tyre",
+      "200 kg load rating"
+    ],
+    "specs": {
+      "Capacity": "100 L",
+      "Load rating": "200 kg",
+      "Tyre": "16\" flat-free",
+      "Weight": "19 kg"
+    },
+    "uses": [
+      "Manure",
+      "Feed",
+      "Soil & compost",
+      "Harvest"
+    ]
+  },
+  {
+    "slug": "digital-soil-ph-meter",
+    "name": "Digital Soil pH Meter",
+    "category": "farm-tools",
+    "sub": "testing-tools",
+    "sku": "UF-PH1",
+    "price": 76000,
+    "art": "meter-pins",
+    "stock": "InStock",
+    "short": "Direct-insert digital soil pH tester with temperature reading. Plan lime and fertiliser.",
+    "description": [
+      "Most crops grow best between pH 6.0 and 7.0. This direct-insert meter reads pH in moist soil in under a minute, so you can map acidity across a field and lime only where needed."
+    ],
+    "features": [
+      "Direct soil insertion",
+      "pH and temperature",
+      "Two-point calibration"
+    ],
+    "specs": {
+      "pH range": "3.0 – 9.0",
+      "Accuracy": "±0.2 pH",
+      "Power": "2 × AAA batteries",
+      "Weight": "150 g"
+    },
+    "uses": [
+      "Field pH mapping",
+      "Liming decisions",
+      "Gardens & nurseries"
+    ]
+  }
+]

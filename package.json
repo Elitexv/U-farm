@@ -1,0 +1,15 @@
+{
+  "name": "u-farm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "U-farm — moisture meters, farm equipment and tools. SEO-focused static site with a product admin.",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build.js",
+    "serve": "node serve.js",
+    "dev": "node build.js && node serve.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
