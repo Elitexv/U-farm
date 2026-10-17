@@ -1,0 +1,13 @@
+# Vercel hosts U-farm as a static site (vercel.json builds dist/).
+# The Node server and admin panel need a writable disk, so they are not
+# deployed there; run them locally with `npm start` (see README).
+server.js
+serve.js
+admin
+admin.config.json
+dist
+dist.tmp
+# Old one-page draft, not part of the site
+/index.html
+/script.js
+/styles.css

@@ -3,7 +3,13 @@ module.exports = {
   name: 'U-farm',
   legalName: 'U-farm Supplies',
   // Production URL, no trailing slash. Used for canonical links, sitemap and structured data.
-  url: 'https://www.u-farm.com',
+  // Set SITE_URL (e.g. https://www.yourdomain.com) once you have a custom domain;
+  // on Vercel it otherwise falls back to the project's production address.
+  url: (
+    process.env.SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
+    'https://u-farm.vercel.app'
+  ).replace(/\/+$/, ''),
   tagline: 'Moisture Meters, Farm Equipment & Tools',
   description:
     'U-farm sells moisture meters for grain, hay, soil, wood, coffee and more, plus farm equipment and hand tools. Accurate, durable, farm-tested — shipped fast.',

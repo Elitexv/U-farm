@@ -21,8 +21,18 @@ rebuilds and publishes the shop straight away.
 - A product's URL slug is fixed once created, so links never break.
 - **Hosting:** the admin needs a Node host with a persistent disk (a VPS, Render,
   Railway, etc.). Run `npm start` behind HTTPS and set `PORT` and `ADMIN_PASSWORD`.
-  On a static-only host (Netlify, Vercel, GitHub Pages) the shop works but the admin
-  does not; use the admin locally, then deploy `dist/`.
+
+## Deploying on Vercel
+
+Vercel hosts the shop as a static site: `vercel.json` runs `node build.js` and serves
+`dist/`. `.vercelignore` keeps `server.js` and the admin out of the upload, because
+Vercel functions have a read-only disk.
+
+To change products: run `npm start` locally, edit in `/admin/`, then
+`git add -A && git commit -m "Update products" && git push`. Vercel rebuilds automatically.
+
+When you add a custom domain, set the `SITE_URL` environment variable in Vercel
+(e.g. `https://www.yourdomain.com`) so canonical links and the sitemap use it.
 
 ## Where things live
 
