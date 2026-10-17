@@ -329,7 +329,7 @@ menu.addEventListener('click', async (e) => {
 // One-click import of the catalog that is currently on the website.
 $('[data-import]').addEventListener('click', async () => {
   const btn = $('[data-import]');
-  if (!confirm('Import the starter catalog into Firestore?')) return;
+  if (!confirm('Import the 34 example products into your shop?')) return;
   btn.disabled = true;
   btn.textContent = 'Importing…';
   try {
@@ -350,7 +350,7 @@ $('[data-import]').addEventListener('click', async () => {
     toast(friendly(x), true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Import starter catalog';
+    btn.textContent = 'Or import the 34 example products';
   }
 });
 

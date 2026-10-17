@@ -121,6 +121,12 @@ const toolbar = (withFilter) => `
   </div>
 </div>`;
 
+// Product grid, or a friendly message when a listing has no products yet.
+const listing = (list) =>
+  list.length
+    ? productGrid(list)
+    : `<div class="empty-state">${icons.chat}<h2>New products coming soon</h2><p>Message us on WhatsApp for availability and prices.</p><a class="btn btn-wa" href="https://wa.me/${site.whatsapp}" rel="noopener">${icons.whatsapp} Ask on WhatsApp</a></div>`;
+
 const pageHero = ({ crumbs, title, lead, extra = '', narrow = false }) => `
 <section class="page-hero">
   <div class="container${narrow ? ' narrow' : ''}">
@@ -243,12 +249,13 @@ function home() {
   </div>
 </section>
 
+${featuredMeters.length ? `
 <section class="section tint">
   <div class="container">
     ${sectionHead('Best-selling moisture meters', { eyebrow: 'Popular now', href: '/moisture-meters/', linkText: 'All meters' })}
     ${productGrid(featuredMeters)}
   </div>
-</section>
+</section>` : ''}
 
 ${aquaHero ? `
 <section class="spotlight">
@@ -320,7 +327,7 @@ ${pageHero({ crumbs: crumbs.html, title: esc(cat.title), lead: esc(cat.intro), e
 <section class="section">
   <div class="container" data-listing>
     ${toolbar(false)}
-    ${productGrid(list)}
+    ${listing(list)}
   </div>
 </section>
 ${relatedGuides(cat)}
@@ -352,7 +359,7 @@ ${pageHero({ crumbs: crumbs.html, title: esc(sub.title), lead: esc(sub.intro) })
 <section class="section">
   <div class="container" data-listing>
     ${toolbar(false)}
-    ${list.length ? productGrid(list) : `<div class="empty-state">${icons.chat}<h2>New products coming soon</h2><p>Message us on WhatsApp for availability and prices.</p><a class="btn btn-wa" href="https://wa.me/${site.whatsapp}" rel="noopener">${icons.whatsapp} Ask on WhatsApp</a></div>`}
+    ${listing(list)}
   </div>
 </section>
 ${sub.faq ? faqHtml(sub.faq) : ''}
@@ -538,7 +545,7 @@ ${pageHero({ crumbs: crumbs.html, title: 'Shop All Moisture Meters, Farm Equipme
 <section class="section">
   <div class="container" data-listing>
     ${toolbar(true)}
-    ${productGrid(ordered)}
+    ${listing(ordered)}
   </div>
 </section>`;
   write(
@@ -577,6 +584,19 @@ ${pageHero({ crumbs: crumbs.html, title: 'Farm Buying Guides &amp; Moisture Advi
   );
 }
 
+// Guides link to products by URL. If a product has been removed, point the
+// link at its sub-category (from the starter catalog) so it never breaks.
+function linkProducts(html) {
+  const starter = store.load();
+  return html.replace(/href="\/products\/([a-z0-9-]+)\/"/g, (m, slug) => {
+    if (products.some((p) => p.slug === slug)) return m;
+    const old = starter.find((p) => p.slug === slug);
+    const cat = old && findCategory(old.category);
+    const sub = cat && findSub(cat, old.sub);
+    return `href="${sub ? subUrl(cat, sub) : '/shop/'}"`;
+  });
+}
+
 function postPage(post) {
   const url = `/guides/${post.slug}/`;
   const crumbs = breadcrumbs([
@@ -594,7 +614,7 @@ function postPage(post) {
     extra: `<p class="meta"><span class="author">${t.logo} U-farm team</span><span>${formatDate(post.date)}</span><span>${readMins(post.body)} min read</span></p>`,
   })}
   <section class="section">
-    <div class="container narrow prose">${post.body}</div>
+    <div class="container narrow prose">${linkProducts(post.body)}</div>
   </section>
 </article>
 ${related.length ? `<section class="section tint"><div class="container">${sectionHead('Products in this guide', { eyebrow: 'Shop the guide' })}${productGrid(related)}</div></section>` : ''}`;
@@ -936,21 +956,25 @@ function cleanRemote(docs) {
   return ok.sort((a, b) => a._position - b._position).map(({ _position, ...p }) => p);
 }
 
-let source = 'local';
+// Firestore is the source of truth: an empty collection means an empty shop.
+// If Firestore can't be reached the build fails, so Vercel keeps serving the
+// last good deployment instead of publishing stale products.
+// (Set USE_LOCAL_CATALOG=1 to build from src/data/products.json offline.)
+let source = 'Firestore';
 async function loadCatalog() {
-  try {
-    const [remote, settings] = await Promise.all([firebase.getCollection('products'), firebase.getDoc('settings/site')]);
-    if (settings) applySettings(settings);
-    if (remote.length) {
-      source = 'Firestore';
-      return cleanRemote(remote);
-    }
-    console.warn('Firestore has no products yet — using src/data/products.json');
-  } catch (err) {
-    console.warn(`Could not read Firestore (${err.message}) — using src/data/products.json`);
+  if (process.env.USE_LOCAL_CATALOG) {
+    source = 'local file';
+    return store.load();
   }
-  source = 'local';
-  return store.load();
+  let remote, settings;
+  try {
+    [remote, settings] = await Promise.all([firebase.getCollection('products'), firebase.getDoc('settings/site')]);
+  } catch (err) {
+    throw new Error(`Could not read products from Firestore (${err.message}). Build stopped so the live site is not replaced.`);
+  }
+  if (settings) applySettings(settings);
+  if (!remote.length) console.warn('Firestore has no products — building an empty shop.');
+  return cleanRemote(remote);
 }
 
 // Photos uploaded in the admin live in Firestore (images/{id}) as data URLs.
