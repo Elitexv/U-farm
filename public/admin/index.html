@@ -38,6 +38,10 @@
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z M13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
     <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7M8 11h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
     <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
   </defs>
 </svg>
@@ -69,6 +73,8 @@
       <a href="#/" data-side="products"><svg class="i"><use href="#i-box"/></svg>Products</a>
       <a href="#/orders" data-side="orders"><svg class="i"><use href="#i-truck"/></svg>Orders <b class="count" data-count-orders hidden></b></a>
       <a href="#/messages" data-side="messages"><svg class="i"><use href="#i-mail"/></svg>Messages <b class="count" data-count-messages hidden></b></a>
+      <a href="#/discounts" data-side="discounts"><svg class="i"><use href="#i-tag"/></svg>Discounts</a>
+      <a href="#/guides" data-side="guides"><svg class="i"><use href="#i-book"/></svg>Guides</a>
       <a href="#/categories" data-side="categories"><svg class="i"><use href="#i-grid"/></svg>Categories</a>
       <a href="#/customers" data-side="customers"><svg class="i"><use href="#i-users"/></svg>Customers</a>
       <a href="#/settings" data-side="settings"><svg class="i"><use href="#i-gear"/></svg>Settings</a>
@@ -216,16 +222,17 @@
 
         <div class="col-side">
           <div class="card">
-            <h2>Photo</h2>
+            <h2>Photos</h2>
             <div class="photo">
               <img alt="" data-photo-img hidden>
-              <p class="muted" data-photo-empty>No photo — an illustration is used.</p>
+              <p class="muted" data-photo-empty>No photos — an illustration is used.</p>
             </div>
+            <ul class="gallery-admin" data-gallery-list aria-label="Product photos"></ul>
             <div class="photo-actions">
-              <label class="btn btn-outline btn-sm file-btn">Upload photo<input type="file" accept="image/png,image/jpeg,image/webp" data-file hidden></label>
-              <button type="button" class="link danger" data-remove-photo hidden>Remove photo</button>
+              <label class="btn btn-outline btn-sm file-btn">Add photos<input type="file" accept="image/png,image/jpeg,image/webp" multiple data-file hidden></label>
+              <span class="muted small" data-photo-count></span>
             </div>
-            <p class="muted small" data-upload-status>JPG, PNG or WebP. Photos are resized automatically.</p>
+            <p class="muted small" data-upload-status>JPG, PNG or WebP, up to 8 photos. The first photo is the main one; use the arrows to reorder.</p>
             <label data-art-wrap>Illustration (when no photo)<select name="art"></select></label>
           </div>
 
@@ -239,6 +246,10 @@
                 <option value="PreOrder">Pre-order</option>
                 <option value="OutOfStock">Out of stock</option>
               </select>
+            </label>
+            <label>Units in stock <small class="muted">optional — leave empty to not track</small>
+              <input name="qty" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 12">
+              <small class="muted">Goes down when you confirm an order, back up if it's cancelled. At 0 the product shows as out of stock.</small>
             </label>
             <label class="check"><input type="checkbox" name="featured"> Feature on the home page</label>
           </div>
@@ -273,6 +284,125 @@
     <section data-view="messages" hidden>
       <div class="head"><div><h1>Messages</h1><p class="sub-title">Sent from the contact page, newest first.</p></div></div>
       <div class="list" data-messages></div>
+    </section>
+
+    <!-- Discounts -->
+    <section data-view="discounts" hidden>
+      <div class="head">
+        <div><h1>Discounts</h1><p class="sub-title">Codes customers can enter in the cart. Changes apply straight away — no need to publish.</p></div>
+        <button type="button" class="btn btn-accent" data-coupon-new><svg class="i"><use href="#i-plus"/></svg>New code</button>
+      </div>
+      <form class="card coupon-editor" data-coupon-editor hidden novalidate>
+        <h2 data-coupon-title>New discount code</h2>
+        <div class="row">
+          <label>Code <span class="req">*</span><input name="code" required maxlength="20" placeholder="e.g. HARVEST10" autocapitalize="characters" spellcheck="false"><small class="muted">Letters, numbers and dashes. Can't be changed later.</small></label>
+          <label>Type
+            <select name="type"><option value="percent">Percentage off</option><option value="fixed">Fixed amount off (₦)</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Value <span class="req">*</span><input name="value" type="number" min="1" step="1" required inputmode="numeric" placeholder="e.g. 10"><small class="muted" data-value-hint>Percent off the order total</small></label>
+          <label>Minimum order (₦) <input name="minOrder" type="number" min="0" step="1" inputmode="numeric" placeholder="0 = no minimum"></label>
+        </div>
+        <div class="row">
+          <label>Expires on <input name="expires" type="date"><small class="muted">Leave empty for no expiry</small></label>
+          <label>Usage limit <input name="maxUses" type="number" min="0" step="1" inputmode="numeric" placeholder="0 = unlimited"></label>
+        </div>
+        <label class="check"><input type="checkbox" name="active" checked> Active</label>
+        <p class="error" data-coupon-error hidden></p>
+        <div class="form-actions">
+          <button class="btn btn-accent" type="submit">Save code</button>
+          <button class="btn btn-outline" type="button" data-coupon-cancel>Cancel</button>
+        </div>
+      </form>
+      <div class="card table-card">
+        <table class="table table-simple">
+          <thead><tr><th>Code</th><th>Discount</th><th>Minimum</th><th>Expires</th><th>Used</th><th>Status</th><th class="c">Actions</th></tr></thead>
+          <tbody data-coupons></tbody>
+        </table>
+        <p class="empty muted" data-coupons-empty hidden>No discount codes yet. Click <b>New code</b> to create one.</p>
+      </div>
+    </section>
+
+    <!-- Guides -->
+    <section data-view="guides" hidden>
+      <div class="head">
+        <div><h1>Guides</h1><p class="sub-title">Buying guides and articles. They bring visitors from Google — publish after saving.</p></div>
+        <a class="btn btn-accent" href="#/guide-new"><svg class="i"><use href="#i-plus"/></svg>New guide</a>
+      </div>
+      <div class="card empty-card" data-posts-empty hidden>
+        <h2>No guides yet</h2>
+        <p>Write your first guide, or start from the three example guides (you can edit them).</p>
+        <button type="button" class="btn btn-outline btn-sm" data-posts-import>Import the 3 example guides</button>
+      </div>
+      <div class="card table-card">
+        <table class="table table-simple">
+          <thead><tr><th>Title</th><th>Date</th><th>Status</th><th class="c">Actions</th></tr></thead>
+          <tbody data-posts></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Guide editor -->
+    <section data-view="guide-edit" hidden>
+      <div class="head">
+        <div>
+          <a class="link" href="#/guides"><svg class="i i-sm"><use href="#i-chevl"/></svg>All guides</a>
+          <h1 data-post-title>New guide</h1>
+        </div>
+        <a class="btn btn-outline" data-post-live target="_blank" rel="noopener" hidden><svg class="i"><use href="#i-eye"/></svg>View on site</a>
+      </div>
+      <form class="editor" data-post-editor novalidate>
+        <div class="col-main">
+          <div class="card">
+            <label>Title <span class="req">*</span><input name="title" required maxlength="160" placeholder="e.g. How to dry cocoa beans to export standard"></label>
+            <label>URL slug <span class="req">*</span><input name="slug" required maxlength="80"><small class="muted" data-post-slug-hint></small></label>
+            <div class="rte-toolbar" role="toolbar" aria-label="Formatting">
+              <button type="button" data-cmd="formatBlock" data-arg="p" title="Paragraph">¶</button>
+              <button type="button" data-cmd="formatBlock" data-arg="h2" title="Heading">H2</button>
+              <button type="button" data-cmd="formatBlock" data-arg="h3" title="Sub-heading">H3</button>
+              <span class="rte-sep"></span>
+              <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+              <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+              <span class="rte-sep"></span>
+              <button type="button" data-cmd="insertUnorderedList" title="Bullet list">• List</button>
+              <button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+              <span class="rte-sep"></span>
+              <button type="button" data-cmd="link" title="Add link">Link</button>
+              <button type="button" data-cmd="unlink" title="Remove link">Unlink</button>
+              <button type="button" data-cmd="note" title="Highlighted note">Note</button>
+              <label class="rte-img" title="Insert photo">Photo<input type="file" accept="image/png,image/jpeg,image/webp" data-post-image hidden></label>
+              <span class="rte-sep"></span>
+              <button type="button" data-cmd="undo" title="Undo">↶</button>
+              <button type="button" data-cmd="redo" title="Redo">↷</button>
+            </div>
+            <div class="rte" contenteditable="true" data-post-body role="textbox" aria-multiline="true" aria-label="Guide text"></div>
+            <p class="muted small" data-post-status>Tip: use H2 for section headings. Paste plain text for best results.</p>
+          </div>
+        </div>
+        <div class="col-side">
+          <div class="card">
+            <h2>Publishing</h2>
+            <label class="check"><input type="checkbox" name="published"> Published (visible on the site)</label>
+            <label>Date <input name="date" type="date" required></label>
+          </div>
+          <div class="card">
+            <h2>Google &amp; listings</h2>
+            <label>Summary <small class="muted">shown on guide cards</small><textarea name="excerpt" rows="3" maxlength="400"></textarea></label>
+            <label>Search description <small class="muted" data-meta-count></small><textarea name="metaDescription" rows="3" maxlength="300" placeholder="About 150 characters for Google results"></textarea></label>
+          </div>
+          <div class="card">
+            <h2>Products in this guide</h2>
+            <input type="search" placeholder="Filter products…" data-related-filter aria-label="Filter products">
+            <div class="related-list" data-related></div>
+          </div>
+          <div class="card sticky">
+            <p class="error" data-post-error hidden></p>
+            <button class="btn btn-accent btn-block" type="submit">Save guide</button>
+            <button type="button" class="link danger" data-post-delete hidden>Delete this guide</button>
+          </div>
+        </div>
+      </form>
     </section>
 
     <!-- Categories -->
@@ -327,6 +457,7 @@
           <h2>Shop</h2>
           <label>Free delivery on orders over (₦) <input name="freeShippingOver" type="number" min="0" step="1"></label>
           <label>Payment methods <small class="muted">— one per line, shown at checkout</small><textarea name="paymentMethods" rows="4"></textarea></label>
+          <label>Low-stock alert at <small class="muted">— flag products with this many units or fewer, and show "Only N left" on the shop</small><input name="lowStockAt" type="number" min="0" step="1"></label>
         </div>
         <div class="card">
           <h2>Publishing</h2>

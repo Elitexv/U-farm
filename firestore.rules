@@ -37,12 +37,15 @@ service cloud.firestore {
     // Orders: customers can only create a well-formed new order.
     match /orders/{id} {
       allow create: if id.size() <= 40
-        && request.resource.data.keys().hasOnly(['ref', 'status', 'createdAt', 'currency', 'subtotal', 'itemCount', 'items', 'customer'])
+        && request.resource.data.keys().hasOnly(['ref', 'status', 'createdAt', 'currency', 'subtotal', 'discount', 'couponCode', 'total', 'itemCount', 'items', 'customer'])
         && request.resource.data.ref == id
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt is timestamp
         && str(request.resource.data.currency, 5)
         && request.resource.data.subtotal is number && request.resource.data.subtotal >= 0
+        && (!('discount' in request.resource.data) || (request.resource.data.discount is number && request.resource.data.discount >= 0))
+        && (!('couponCode' in request.resource.data) || str(request.resource.data.couponCode, 30))
+        && (!('total' in request.resource.data) || (request.resource.data.total is number && request.resource.data.total >= 0))
         && request.resource.data.itemCount is int && request.resource.data.itemCount > 0 && request.resource.data.itemCount <= 5000
         && request.resource.data.items is list && request.resource.data.items.size() > 0 && request.resource.data.items.size() <= 60
         && request.resource.data.customer is map
@@ -68,6 +71,45 @@ service cloud.firestore {
         && str(request.resource.data.topic, 200)
         && str(request.resource.data.message, 4000) && request.resource.data.message.size() > 0;
       allow read, update, delete: if isAdmin();
+    }
+
+    // Order tracking: a public, PII-free status record per order. Customers
+    // look one up by its exact order number (no listing), and the page also
+    // checks the last 4 digits of their phone via `check`.
+    match /tracking/{ref} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if ref.size() <= 40
+        && request.resource.data.keys().hasOnly(['ref', 'status', 'createdAt', 'updatedAt', 'itemCount', 'total', 'currency', 'check', 'history'])
+        && request.resource.data.ref == ref
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.itemCount is int
+        && request.resource.data.total is number
+        && str(request.resource.data.currency, 5)
+        && request.resource.data.check is string && request.resource.data.check.size() == 64
+        && request.resource.data.history is list && request.resource.data.history.size() == 1;
+      allow update, delete: if isAdmin();
+    }
+
+    // Discount codes: looked up one at a time by exact code (no listing).
+    // Visitors may only add 1 to `uses` on an active code that has uses left.
+    match /coupons/{code} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses'])
+        && request.resource.data.uses == resource.data.uses + 1
+        && resource.data.active == true
+        && (resource.data.maxUses == 0 || resource.data.uses < resource.data.maxUses)
+      );
+    }
+
+    // Buying guides: published ones are public; drafts are admin-only.
+    match /posts/{slug} {
+      allow get, list: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
     }
 
     // Each user may only check their own admin status. Nobody can grant

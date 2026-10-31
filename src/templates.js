@@ -207,6 +207,7 @@ function footer() {
         <li><a href="/about/">About U-farm</a></li>
         <li><a href="/guides/">Buying guides</a></li>
         <li><a href="/shop/">Shop all</a></li>
+        <li><a href="/track/">Track your order</a></li>
         <li><a href="/shipping-returns/">Shipping &amp; returns</a></li>
         <li><a href="/privacy-policy/">Privacy policy</a></li>
         <li><a href="/contact/">Contact &amp; support</a></li>

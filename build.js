@@ -5,7 +5,7 @@ const path = require('path');
 const site = require('./src/site');
 const categories = require('./src/categories');
 const store = require('./src/products');
-const posts = require('./src/posts');
+const { sanitize } = require('./src/sanitize');
 const { art, keys: artKeys } = require('./src/art');
 const firebase = require('./src/firebase');
 const t = require('./src/templates');
@@ -19,6 +19,7 @@ const DIST = path.join(__dirname, 'dist');
 // Set at the start of each build() run.
 let OUT = DIST;
 let products = [];
+let posts = [];
 let today = '';
 const sitemap = []; // {path, lastmod, priority}
 
@@ -39,6 +40,12 @@ function copyDir(src, dest) {
   }
 }
 
+// Shorten text to about `n` characters at a word boundary.
+const clip = (s, n) => {
+  const t = String(s).replace(/\s+/g, ' ').trim();
+  if (t.length <= n) return t.replace(/[.!?]$/, '') + '.';
+  return t.slice(0, n).replace(/\s+\S*$/, '').replace(/[,;:.]$/, '') + '…';
+};
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const countIn = (subSlug) => products.filter((p) => p.sub === subSlug).length;
 const firstSentence = (s) => s.split('. ')[0].replace(/\.$/, '') + '.';
@@ -196,7 +203,7 @@ function home() {
       <p class="lead">Test grain, hay, soil, wood, coffee and more with accurate moisture meters — then get the sprayers, pumps and hand tools to do the work. Chosen for real farms, backed by real advice.</p>
       <div class="cta-row">
         <a class="btn btn-primary btn-lg" href="/moisture-meters/">${icons.cart} Shop Moisture Meters ${icons.chevRight}</a>
-        <a class="btn btn-outline-green btn-lg" href="/guides/how-to-choose-a-moisture-meter/">${icons.pulse} Which meter do I need?</a>
+        <a class="btn btn-outline-green btn-lg" href="${posts.some((p) => p.slug === 'how-to-choose-a-moisture-meter') ? '/guides/how-to-choose-a-moisture-meter/' : '/contact/'}">${icons.pulse} Which meter do I need?</a>
       </div>
       <ul class="hero-checks">
         <li>${solid.checkCircle} ±0.5% grain accuracy</li>
@@ -283,12 +290,13 @@ ${featuredOther.length ? `
   </div>
 </section>` : ''}
 
+${posts.length ? `
 <section class="section">
   <div class="container">
     ${sectionHead('Buying guides', { eyebrow: 'Learn', href: '/guides/', linkText: 'All guides' })}
-    <div class="grid guides">${posts.map(postCard).join('')}</div>
+    <div class="grid guides">${posts.slice(0, 3).map(postCard).join('')}</div>
   </div>
-</section>`;
+</section>` : ''}`;
 
   const websiteLd = {
     '@context': 'https://schema.org',
@@ -408,17 +416,24 @@ function productPage(prod) {
   }[prod.stock];
   const waText = encodeURIComponent(`Hello U-farm, I would like to order: ${prod.name} (${prod.sku}) — ${abs(url)}`);
   const specs = Object.entries(prod.specs);
+  const gallery = prod.gallery && prod.gallery.length ? prod.gallery : [img];
+  const tracked = Number.isFinite(prod.qty);
+  const lowStock = tracked && buyable && prod.stock !== 'PreOrder' && prod.qty > 0 && prod.qty <= (site.lowStockAt || 3);
+  const maxQty = tracked && prod.stock === 'InStock' ? Math.max(1, Math.min(99, prod.qty)) : 99;
 
   const body = `
 <section class="product-top">
   <div class="container">
     ${crumbs.html}
     <div class="product-grid">
-      <div class="product-gallery">
+      <div class="product-gallery" data-gallery>
         <div class="gallery-frame">
-          <img src="${img}" alt="${esc(prod.name)}" width="800" height="600" fetchpriority="high">
+          <img src="${gallery[0]}" alt="${esc(prod.name)}" width="800" height="600" fetchpriority="high" data-gallery-main>
           ${off ? `<span class="tag tag-sale">-${off}%</span>` : ''}
         </div>
+        ${gallery.length > 1 ? `<div class="gallery-thumbs" role="list" aria-label="More photos">
+          ${gallery.map((g, i) => `<button type="button" class="gallery-thumb${i === 0 ? ' on' : ''}" data-gallery-src="${g}" aria-label="Photo ${i + 1} of ${gallery.length}"${i === 0 ? ' aria-current="true"' : ''} role="listitem"><img src="${g}" alt="" width="120" height="90" loading="lazy"></button>`).join('')}
+        </div>` : ''}
       </div>
       <div class="product-info">
         <p class="pcard-meta">${prod.brand ? `<b>${esc(prod.brand)}</b> · ` : ''}<a href="${subUrl(cat, sub)}">${esc(sub.name)}</a></p>
@@ -429,11 +444,12 @@ function productPage(prod) {
           ${prod.oldPrice ? `<span class="save">You save ${money(prod.oldPrice - prod.price)}</span>` : ''}
         </div>
         <p class="stock-pill ${prod.stock}"><span class="dot"></span>${stockText}</p>
+        ${lowStock ? `<p class="low-stock">Only ${prod.qty} left in stock — order soon</p>` : ''}
         <p class="lead">${esc(prod.short)}</p>
         <div class="buy">
           <div class="stepper qty">
             <button type="button" data-qty-step="-1" aria-label="Decrease quantity">&minus;</button>
-            <input id="qty" type="number" min="1" max="99" value="1" data-qty aria-label="Quantity">
+            <input id="qty" type="number" min="1" max="${maxQty}" value="1" data-qty aria-label="Quantity">
             <button type="button" data-qty-step="1" aria-label="Increase quantity">+</button>
           </div>
           <button class="btn btn-primary btn-lg" data-add-to-cart="${prod.slug}"${buyable ? '' : ' disabled'}>${icons.cart} Add to cart</button>
@@ -494,7 +510,7 @@ ${related.length ? `<section class="section"><div class="container">${sectionHea
     name: prod.name,
     sku: prod.sku,
     mpn: prod.sku,
-    image: [abs(img)],
+    image: gallery.map((g) => abs(g)),
     description: [prod.short, ...prod.description].join(' '),
     brand: { '@type': 'Brand', name: prod.brand || site.name },
     category: `${cat.name} > ${sub.name}`,
@@ -523,7 +539,7 @@ ${related.length ? `<section class="section"><div class="container">${sectionHea
     url,
     layout({
       title: prod.name.length > 34 ? prod.name : `${prod.name} — Buy Online`,
-      description: `${prod.short} ${money(prod.price)}. In stock at U-farm.`.slice(0, 300),
+      description: `${clip(prod.short, 120)} ${money(prod.price)}${prod.stock === 'InStock' ? ' — in stock at U-farm.' : ' at U-farm.'}`,
       path: url,
       body,
       ld: [crumbs.ld, productLd],
@@ -569,7 +585,7 @@ function guidesIndex() {
   const body = `
 ${pageHero({ crumbs: crumbs.html, title: 'Farm Buying Guides &amp; Moisture Advice', lead: 'Practical, plain-English guides to moisture testing, storage and choosing farm equipment.' })}
 <section class="section">
-  <div class="container"><div class="grid guides">${[...posts].reverse().map(postCard).join('')}</div></div>
+  <div class="container">${posts.length ? `<div class="grid guides">${posts.map(postCard).join('')}</div>` : `<div class="empty-state">${icons.book}<h2>New guides coming soon</h2><p>Meanwhile, ask us anything about moisture meters on WhatsApp.</p><a class="btn btn-wa" href="https://wa.me/${site.whatsapp}" rel="noopener">${icons.whatsapp} Ask on WhatsApp</a></div>`}</div>
 </section>`;
   write(
     '/guides/',
@@ -799,6 +815,27 @@ function infoPages() {
 <div data-search-results></div>`,
   });
 
+  simplePage({
+    path: '/track/',
+    title: 'Track Your Order',
+    h1: 'Track your order',
+    lead: 'Enter your order number and the last 4 digits of the phone number you ordered with.',
+    description: 'Check the status of your U-farm order.',
+    index: false,
+    wide: true,
+    content: `
+<div class="track-layout">
+  <form class="form card-form track-form" data-track-form novalidate>
+    <label>Order number <input name="ref" required autocomplete="off" autocapitalize="characters" placeholder="e.g. UF-261021-8K3QZP" spellcheck="false"></label>
+    <label>Last 4 digits of your phone <input name="last4" required inputmode="numeric" maxlength="4" pattern="\\d{4}" placeholder="e.g. 8205" autocomplete="off"></label>
+    <p class="form-error" data-track-error hidden></p>
+    <button class="btn btn-primary btn-lg" type="submit">${icons.search} Track order</button>
+    <p class="small">Your order number is in the WhatsApp message you sent us and on the confirmation screen after checkout.</p>
+  </form>
+  <div data-track-result aria-live="polite"></div>
+</div>`,
+  });
+
   // 404 (served at /404.html by most static hosts)
   const notFound = layout({
     title: 'Page Not Found',
@@ -845,6 +882,7 @@ function extras() {
       sub: sub.name,
       subUrl: subUrl(cat, sub),
       short: p.short,
+      ...(Number.isFinite(p.qty) ? { qty: p.qty } : {}),
       keywords: [p.name, p.sku, p.brand || '', (p.brand || '').replace(/-/g, ''), cat.name, sub.name, p.short, ...p.uses]
         .join(' ')
         .toLowerCase(),
@@ -860,6 +898,7 @@ function extras() {
         email: site.email,
         freeShippingOver: site.freeShippingOver,
         paymentMethods: site.paymentMethods,
+        url: site.url,
         // Lets checkout and the contact form save orders/messages to Firestore.
         firebase: { projectId: firebase.config.projectId, apiKey: firebase.config.apiKey },
       },
@@ -870,6 +909,8 @@ function extras() {
   // Starter catalog the admin can import into an empty Firestore.
   fs.mkdirSync(path.join(OUT, 'admin'), { recursive: true });
   fs.writeFileSync(path.join(OUT, 'admin', 'seed.json'), JSON.stringify(store.load()));
+  // Example guides the admin can import into an empty guides list.
+  fs.writeFileSync(path.join(OUT, 'admin', 'seed-posts.json'), JSON.stringify(require('./src/posts')));
 
   // Everything the admin panel needs to know about the site.
   fs.writeFileSync(
@@ -924,6 +965,7 @@ function extras() {
 const SETTING_TYPES = {
   phone: 'string', phoneDisplay: 'string', whatsapp: 'string', email: 'string',
   hours: 'string', freeShippingOver: 'number', paymentMethods: 'array', address: 'object', social: 'object',
+  lowStockAt: 'number',
 };
 function applySettings(remote) {
   for (const [key, type] of Object.entries(SETTING_TYPES)) {
@@ -943,14 +985,22 @@ function cleanRemote(docs) {
     const cat = findCategory(d.category);
     const valid = d.name && d.sku && cat && findSub(cat, d.sub) && Number.isFinite(d.price) && d.short;
     if (!valid) { console.warn(`  skipped product "${d.id}": missing name, SKU, price, short description or category`); continue; }
-    const { thumb, position, updatedAt, id, ...p } = d;
+    const { thumb, thumbs, position, updatedAt, id, ...p } = d;
     p.slug = id;
     p.description = Array.isArray(p.description) && p.description.length ? p.description : [p.short];
     p.features = Array.isArray(p.features) ? p.features : [];
     p.uses = Array.isArray(p.uses) ? p.uses : [];
     p.specs = p.specs && typeof p.specs === 'object' ? p.specs : {};
     p.stock = ['InStock', 'PreOrder', 'OutOfStock'].includes(p.stock) ? p.stock : 'InStock';
-    if (!p.image && !artKeys.includes(p.art)) p.art = 'meter-cup';
+    // Photos: `images` (gallery, first = main) or the older single `image`.
+    p.images = (Array.isArray(p.images) && p.images.length ? p.images : p.image ? [p.image] : []).filter((x) => typeof x === 'string');
+    delete p.image;
+    // Stock quantity is optional; when tracked, 0 left means out of stock.
+    if (Number.isFinite(p.qty)) {
+      p.qty = Math.max(0, Math.floor(p.qty));
+      if (p.qty === 0 && p.stock === 'InStock') p.stock = 'OutOfStock';
+    } else delete p.qty;
+    if (!p.images.length && !artKeys.includes(p.art)) p.art = 'meter-cup';
     ok.push({ ...p, _position: Number.isFinite(position) ? position : 0 });
   }
   return ok.sort((a, b) => a._position - b._position).map(({ _position, ...p }) => p);
@@ -979,26 +1029,80 @@ async function loadCatalog() {
 
 // Photos uploaded in the admin live in Firestore (images/{id}) as data URLs.
 // Write them out as normal files so pages, Google and social previews use plain URLs.
+const imageCache = new Map();
+async function imageFile(ref) {
+  if (!ref.startsWith('fsimg:')) return ref; // already a site path or URL
+  if (imageCache.has(ref)) return imageCache.get(ref);
+  const id = ref.slice(6);
+  if (!/^[A-Za-z0-9_-]{1,120}$/.test(id)) throw new Error('bad image id');
+  const doc = await firebase.getDoc(`images/${encodeURIComponent(id)}`);
+  const m = doc && /^data:image\/(png|jpeg|webp);base64,(.+)$/.exec(doc.data || '');
+  if (!m) throw new Error('missing or not an image');
+  const ext = { png: 'png', jpeg: 'jpg', webp: 'webp' }[m[1]];
+  const dir = path.join(OUT, 'assets', 'img', 'uploads');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `${id}.${ext}`), Buffer.from(m[2], 'base64'));
+  const url = `/assets/img/uploads/${id}.${ext}`;
+  imageCache.set(ref, url);
+  return url;
+}
+
 async function materializeImages(list) {
-  const dir = path.join(OUT, 'assets', 'img', 'products', 'uploads');
   for (const p of list) {
-    if (!p.image || !p.image.startsWith('fsimg:')) continue;
-    const id = p.image.slice(6);
-    try {
-      const doc = await firebase.getDoc(`images/${encodeURIComponent(id)}`);
-      const m = doc && /^data:image\/(png|jpeg|webp);base64,(.+)$/.exec(doc.data || '');
-      if (!m) throw new Error('missing or not an image');
-      const ext = { png: 'png', jpeg: 'jpg', webp: 'webp' }[m[1]];
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, `${id}.${ext}`), Buffer.from(m[2], 'base64'));
-      p.image = `/assets/img/products/uploads/${id}.${ext}`;
-    } catch (err) {
-      console.warn(`  photo for "${p.slug}" unavailable (${err.message}); using an illustration`);
-      delete p.image;
+    const gallery = [];
+    const refs = p.images || (p.image ? [p.image] : []); // local catalog uses `image`
+    delete p.image;
+    for (const ref of refs) {
+      try {
+        gallery.push(await imageFile(ref));
+      } catch (err) {
+        console.warn(`  a photo for "${p.slug}" is unavailable (${err.message})`);
+      }
+    }
+    delete p.images;
+    if (gallery.length) {
+      p.image = gallery[0];
+      p.gallery = gallery;
+    } else {
       p.art = p.art || 'meter-cup';
     }
   }
   return list;
+}
+
+// Buying guides: published posts from Firestore, newest first. The body is
+// sanitized and any photos uploaded in the editor become normal files.
+async function loadPosts() {
+  let docs;
+  try {
+    docs = await firebase.queryEqual('posts', 'published', true);
+  } catch (err) {
+    throw new Error(`Could not read guides from Firestore (${err.message}). Build stopped so the live site is not replaced.`);
+  }
+  const out = [];
+  for (const d of docs) {
+    if (!d.title || !d.body) continue;
+    let body = sanitize(d.body);
+    const refs = [...new Set(body.match(/fsimg:[A-Za-z0-9_-]+/g) || [])];
+    for (const ref of refs) {
+      try {
+        body = body.split(`"${ref}"`).join(`"${await imageFile(ref)}"`);
+      } catch (err) {
+        console.warn(`  a photo in guide "${d.id}" is unavailable (${err.message})`);
+        body = body.replace(new RegExp(`<img[^>]*src="${ref}"[^>]*>`, 'g'), '');
+      }
+    }
+    out.push({
+      slug: d.id,
+      title: String(d.title).slice(0, 200),
+      metaDescription: String(d.metaDescription || d.excerpt || '').slice(0, 300),
+      excerpt: String(d.excerpt || '').slice(0, 400),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(d.date || '') ? d.date : today,
+      related: Array.isArray(d.related) ? d.related.filter((s) => typeof s === 'string') : [],
+      body,
+    });
+  }
+  return out.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 // ---------- run ----------
@@ -1013,7 +1117,9 @@ async function build() {
   OUT = DIST + '.tmp';
   rm(OUT);
   copyDir(path.join(__dirname, 'public'), OUT);
+  imageCache.clear();
   products = await materializeImages(catalog);
+  posts = process.env.USE_LOCAL_CATALOG ? require('./src/posts') : await loadPosts();
   t.setCatalog(products);
 
   home();

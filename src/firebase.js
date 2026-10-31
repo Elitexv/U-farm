@@ -52,10 +52,29 @@ async function getCollection(name) {
   return docs;
 }
 
+// Documents in `name` where `field` == `value` (a structured query, so
+// security rules that only allow e.g. published posts are satisfied).
+async function queryEqual(name, field, value) {
+  const res = await fetch(`${BASE}:runQuery?key=${config.apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: name }],
+        where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: typeof value === 'boolean' ? { booleanValue: value } : { stringValue: String(value) } } },
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Firestore ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const rows = await res.json();
+  return rows.filter((r) => r.document).map((r) => ({ id: r.document.name.split('/').pop(), ...decodeFields(r.document.fields || {}) }));
+}
+
 // One document's fields, or null if it does not exist.
 async function getDoc(path) {
   const data = await request(`${BASE}/${path}?key=${config.apiKey}`);
   return data ? decodeFields(data.fields || {}) : null;
 }
 
-module.exports = { config, getCollection, getDoc };
+module.exports = { config, getCollection, getDoc, queryEqual };

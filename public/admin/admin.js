@@ -7,7 +7,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch,
-  query, orderBy, limit, serverTimestamp,
+  query, orderBy, limit, serverTimestamp, runTransaction, arrayUnion, Timestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -19,9 +19,13 @@ const db = getFirestore(app);
 
 const PAGE_SIZE = 10;
 const state = {
-  products: [], editing: null, dirty: false, slugTouched: false, photo: null,
+  products: [], editing: null, dirty: false, slugTouched: false, photos: [],
   orders: [], messages: [], page: 1, featuredOnly: false,
+  settings: {}, coupons: [], editingCoupon: null, posts: [], editingPost: null,
 };
+const MAX_PHOTOS = 8;
+const lowStockAt = () => (Number.isFinite(state.settings.lowStockAt) ? state.settings.lowStockAt : 3);
+const isLow = (p) => Number.isFinite(p.qty) && p.qty <= lowStockAt();
 const STOCK = { InStock: 'In stock', PreOrder: 'Pre-order', OutOfStock: 'Out of stock' };
 const ORDER_STATUS = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 const MAX_IMAGE_BYTES = 700 * 1024; // keeps image documents well under Firestore's 1 MiB limit
@@ -33,7 +37,11 @@ const money = (n) => new Intl.NumberFormat('en-NG', { style: 'currency', currenc
 const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 const toDate = (ts) => (ts && ts.toDate ? ts.toDate() : null);
 const when = (ts) => (toDate(ts) ? toDate(ts).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const imageOf = (p) => p.thumb || (p.image && !p.image.startsWith('fsimg:') ? p.image : `/assets/img/products/${p.art || 'meter-cup'}.svg`);
+const imagesOf = (p) => (Array.isArray(p.images) && p.images.length ? p.images : p.image ? [p.image] : []);
+const imageOf = (p) => {
+  const first = imagesOf(p)[0];
+  return p.thumb || (first && !first.startsWith('fsimg:') ? first : `/assets/img/products/${p.art || 'meter-cup'}.svg`);
+};
 const catOf = (slug) => meta.categories.find((c) => c.slug === slug);
 const subName = (cat, sub) => (catOf(cat)?.subs.find((s) => s.slug === sub) || {}).name || sub;
 // Nigerian numbers written 0803… become 234803… for WhatsApp links.
@@ -75,7 +83,7 @@ function download(filename, rows) {
 }
 
 // ---------- layout ----------
-const TAB_OF = { list: 'products', edit: 'products' };
+const TAB_OF = { list: 'products', edit: 'products', 'guide-edit': 'guides' };
 function show(view) {
   $$('[data-view]').forEach((v) => { v.hidden = v.getAttribute('data-view') !== view; });
   const authed = !['login', 'denied', 'loading'].includes(view);
@@ -178,6 +186,7 @@ function filteredProducts() {
     if (cat && p.category !== cat) return false;
     if (stock && p.stock !== stock) return false;
     if (state.featuredOnly && !p.featured) return false;
+    if (state.lowOnly && !(isLow(p) && p.qty > 0)) return false;
     if (q && `${p.name} ${p.sku} ${p.brand || ''}`.toLowerCase().indexOf(q) === -1) return false;
     return true;
   });
@@ -195,8 +204,10 @@ function renderList() {
     b.classList.toggle('active', (k === 'featured' && state.featuredOnly) || (k === stock && !!stock));
   });
   const note = $('[data-filter-note]');
-  note.hidden = !state.featuredOnly;
-  if (state.featuredOnly) note.innerHTML = 'Showing featured products only. <button type="button" class="link" data-clear-featured>Show all</button>';
+  note.hidden = !state.featuredOnly && !state.lowOnly;
+  if (state.featuredOnly || state.lowOnly) {
+    note.innerHTML = `Showing ${state.lowOnly ? 'low-stock' : 'featured'} products only. <button type="button" class="link" data-clear-featured>Show all</button>`;
+  }
 
   const rows = filteredProducts();
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -209,7 +220,7 @@ function renderList() {
       <div><a class="pname" href="#/edit/${esc(p.slug)}">${esc(p.name)}</a><div class="sub">${esc(p.sku)}${p.brand ? ' · ' + esc(p.brand) : ''}</div></div></div></td>
     <td><div class="cat-main">${esc(catOf(p.category)?.name || p.category)}</div><div class="sub">${esc(subName(p.category, p.sub))}</div></td>
     <td class="price-cell">${money(p.price)}${p.oldPrice ? `<s>${money(p.oldPrice)}</s>` : ''}</td>
-    <td><span class="pill ${esc(p.stock)}">${STOCK[p.stock] || esc(p.stock)}</span></td>
+    <td><span class="pill ${esc(p.stock)}">${STOCK[p.stock] || esc(p.stock)}</span>${Number.isFinite(p.qty) ? `<span class="qty-note${isLow(p) ? ' low' : ''}">${p.qty} unit${p.qty === 1 ? '' : 's'}${isLow(p) ? ' — low' : ''}</span>` : ''}</td>
     <td class="c"><button type="button" class="star${p.featured ? ' on' : ''}" data-star="${esc(p.slug)}" aria-label="${p.featured ? 'Remove from' : 'Add to'} home page" title="${p.featured ? 'Featured on home page' : 'Not featured'}">${icon(p.featured ? 'star' : 'star-o')}</button></td>
     <td class="c"><span class="acts">
       <a class="icon-act" href="#/edit/${esc(p.slug)}" aria-label="Edit ${esc(p.name)}" title="Edit">${icon('pencil')}</a>
@@ -250,13 +261,14 @@ $('[data-pager]').addEventListener('click', (e) => {
   $('.table-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
 });
 $('[data-filter-note]').addEventListener('click', (e) => {
-  if (e.target.closest('[data-clear-featured]')) { state.featuredOnly = false; state.page = 1; renderList(); }
+  if (e.target.closest('[data-clear-featured]')) { state.featuredOnly = false; state.lowOnly = false; state.page = 1; renderList(); }
 });
 
 // Summary cards filter the list.
 $$('[data-stat]').forEach((b) => b.addEventListener('click', () => {
   const k = b.getAttribute('data-stat');
   const stockSel = $('[data-filter-stock]');
+  state.lowOnly = false;
   if (k === 'all') { state.featuredOnly = false; stockSel.value = ''; $('[data-search]').value = ''; $('[data-filter-cat]').value = ''; }
   else if (k === 'featured') { state.featuredOnly = !state.featuredOnly; }
   else { stockSel.value = stockSel.value === k ? '' : k; }
@@ -362,15 +374,48 @@ function fillSubs(catSlug, selected) {
   form.sub.innerHTML = c.subs.map((s) => `<option value="${esc(s.slug)}"${s.slug === selected ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
 }
 
-function setPhoto(photo) {
-  // photo: null | { image, preview, thumb }
-  state.photo = photo;
+// state.photos: [{ image: 'fsimg:id' | '/path', preview, thumb }], first = main.
+function renderPhotos() {
+  const photos = state.photos;
   const img = $('[data-photo-img]');
-  if (photo) img.src = photo.preview;
-  img.hidden = !photo;
-  $('[data-photo-empty]').hidden = !!photo;
-  $('[data-remove-photo]').hidden = !photo;
-  $('[data-art-wrap]').hidden = !!photo;
+  if (photos.length) img.src = photos[0].preview || photos[0].thumb || '';
+  img.hidden = !photos.length;
+  $('[data-photo-empty]').hidden = photos.length > 0;
+  $('[data-art-wrap]').hidden = photos.length > 0;
+  $('[data-photo-count]').textContent = photos.length ? `${photos.length} / ${MAX_PHOTOS}` : '';
+  $('[data-gallery-list]').innerHTML = photos.map((ph, i) => `<li>
+    <img src="${esc(ph.thumb || ph.preview || '')}" alt="Photo ${i + 1}">
+    <div class="g-acts">
+      <button type="button" data-ph-move="${i}" data-dir="-1" aria-label="Move photo ${i + 1} earlier" ${i === 0 ? 'disabled' : ''}>${icon('up')}</button>
+      <button type="button" data-ph-remove="${i}" aria-label="Remove photo ${i + 1}">${icon('x')}</button>
+      <button type="button" class="g-next" data-ph-move="${i}" data-dir="1" aria-label="Move photo ${i + 1} later" ${i === photos.length - 1 ? 'disabled' : ''}>${icon('up')}</button>
+    </div></li>`).join('');
+}
+$('[data-gallery-list]').addEventListener('click', (e) => {
+  const mv = e.target.closest('[data-ph-move]');
+  const rm = e.target.closest('[data-ph-remove]');
+  if (mv) {
+    const i = Number(mv.getAttribute('data-ph-move'));
+    const j = i + Number(mv.getAttribute('data-dir'));
+    [state.photos[i], state.photos[j]] = [state.photos[j], state.photos[i]];
+  } else if (rm) {
+    state.photos.splice(Number(rm.getAttribute('data-ph-remove')), 1);
+  } else return;
+  state.dirty = true;
+  renderPhotos();
+});
+
+// Loads full-size previews for photos stored in Firestore.
+function loadPhotoPreviews() {
+  state.photos.forEach((ph) => {
+    if (!ph.image.startsWith('fsimg:') || ph.preview) return;
+    getDoc(doc(db, 'images', ph.image.slice(6))).then((d) => {
+      if (!d.exists()) return;
+      ph.preview = d.data().data;
+      if (!ph.thumb) ph.thumb = ph.preview;
+      renderPhotos();
+    });
+  });
 }
 
 // p = product to edit; copyOf = product to duplicate into a new one.
@@ -406,17 +451,13 @@ async function openEditor(p, copyOf) {
   form.featured.checked = !!src.featured;
   updateShortCount();
 
-  setPhoto(null);
-  if (src.image) {
-    if (src.image.startsWith('fsimg:')) {
-      setPhoto({ image: src.image, preview: src.thumb || '', thumb: src.thumb || '' });
-      getDoc(doc(db, 'images', src.image.slice(6))).then((d) => {
-        if (d.exists() && state.photo && state.photo.image === src.image) { state.photo.preview = d.data().data; $('[data-photo-img]').src = d.data().data; }
-      });
-    } else {
-      setPhoto({ image: src.image, preview: src.image, thumb: '' });
-    }
-  }
+  const thumbs = Array.isArray(src.thumbs) ? src.thumbs : [src.thumb];
+  state.photos = imagesOf(src).map((ref, i) => (ref.startsWith('fsimg:')
+    ? { image: ref, preview: '', thumb: thumbs[i] || '' }
+    : { image: ref, preview: ref, thumb: ref }));
+  renderPhotos();
+  loadPhotoPreviews();
+  form.qty.value = Number.isFinite(src.qty) ? src.qty : '';
 
   const live = $('[data-view-live]');
   live.hidden = isNew;
@@ -482,11 +523,19 @@ function collect() {
     if (i > 0) p.specs[line.slice(0, i).trim().slice(0, 60)] = line.slice(i + 1).trim().slice(0, 200);
   });
   p.uses = lines(form.uses.value).slice(0, 20);
-  if (state.photo) {
-    p.image = state.photo.image;
-    if (state.photo.thumb) p.thumb = state.photo.thumb;
+  if (state.photos.length) {
+    p.images = state.photos.map((ph) => ph.image);
+    // Small thumbnails for the admin list only (the website uses the full photos).
+    p.thumbs = state.photos.map((ph) => (ph.image.startsWith('fsimg:') && ph.thumb && ph.thumb.startsWith('data:') ? ph.thumb : ''));
+    if (p.thumbs[0]) p.thumb = p.thumbs[0];
   } else {
     p.art = form.art.value || 'meter-cup';
+  }
+  if (form.qty.value !== '') {
+    const qty = Number(form.qty.value);
+    if (!Number.isInteger(qty) || qty < 0) fail('Units in stock must be a whole number (0 or more).', 'qty');
+    p.qty = qty;
+    if (qty === 0 && p.stock === 'InStock') p.stock = 'OutOfStock';
   }
   return { slug, product: p };
 }
@@ -505,7 +554,10 @@ form.addEventListener('submit', async (e) => {
     const position = old ? old.position ?? 0 : Math.min(0, ...state.products.map((x) => x.position ?? 0)) - 1;
     await setDoc(doc(db, 'products', data.slug), { ...data.product, position, updatedAt: serverTimestamp() });
     // Tidy up a replaced photo.
-    if (old && old.image && old.image !== data.product.image) await removeImageIfUnused(old.image, data.slug);
+    if (old) {
+      const kept = new Set(data.product.images || []);
+      for (const ref of imagesOf(old)) if (!kept.has(ref)) await removeImageIfUnused(ref, data.slug);
+    }
     const saved = { ...data.product, slug: data.slug, position };
     const i = state.products.findIndex((x) => x.slug === data.slug);
     if (i === -1) state.products.unshift(saved); else state.products[i] = saved;
@@ -524,7 +576,7 @@ form.addEventListener('submit', async (e) => {
 
 async function removeImageIfUnused(image, exceptSlug) {
   if (!image || !image.startsWith('fsimg:')) return;
-  if (state.products.some((x) => x.slug !== exceptSlug && x.image === image)) return;
+  if (state.products.some((x) => x.slug !== exceptSlug && imagesOf(x).includes(image))) return;
   try { await deleteDoc(doc(db, 'images', image.slice(6))); } catch { /* not critical */ }
 }
 
@@ -533,7 +585,7 @@ async function deleteProduct(p) {
   try {
     await deleteDoc(doc(db, 'products', p.slug));
     state.products = state.products.filter((x) => x.slug !== p.slug);
-    await removeImageIfUnused(p.image, p.slug);
+    for (const ref of imagesOf(p)) await removeImageIfUnused(ref, p.slug);
     markPending();
     toast('Product deleted. Click Publish to update the website.');
     if (location.hash === '#/' || location.hash === '') renderList();
@@ -573,30 +625,43 @@ function encode(img, max, quality) {
 }
 const bytesOf = (dataUrl) => Math.ceil((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
 
+// Resizes a photo in the browser and stores it in Firestore (images/{id}).
+async function uploadImage(file, nameHint) {
+  const img = await loadImage(file);
+  let max = 1400, q = 0.85, data = encode(img, max, q);
+  while (bytesOf(data) > MAX_IMAGE_BYTES && max > 600) { max -= 200; q -= 0.05; data = encode(img, max, q); }
+  if (bytesOf(data) > MAX_IMAGE_BYTES) throw new Error(`"${file.name}" is too detailed to store. Try a smaller image.`);
+  const thumb = encode(img, 200, 0.7);
+  const id = `${slugify(nameHint || file.name.replace(/\.\w+$/, '')).slice(0, 60) || 'photo'}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+  await setDoc(doc(db, 'images', id), { data, name: file.name.slice(0, 120), bytes: bytesOf(data), createdAt: serverTimestamp() });
+  return { id, data, thumb, kb: Math.round(bytesOf(data) / 1024) };
+}
+
 $('[data-file]').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
+  const files = [...e.target.files];
   e.target.value = '';
-  if (!file) return;
+  if (!files.length) return;
   const status = $('[data-upload-status]');
-  status.textContent = 'Processing photo…';
-  try {
-    const img = await loadImage(file);
-    let max = 1400, q = 0.85, data = encode(img, max, q);
-    while (bytesOf(data) > MAX_IMAGE_BYTES && max > 600) { max -= 200; q -= 0.05; data = encode(img, max, q); }
-    if (bytesOf(data) > MAX_IMAGE_BYTES) throw new Error('This photo is too detailed to store. Try a smaller image.');
-    const thumb = encode(img, 200, 0.7);
-    const id = `${slugify(form.slug.value || file.name.replace(/\.\w+$/, '')) || 'photo'}-${Date.now().toString(36)}`;
-    status.textContent = 'Uploading…';
-    await setDoc(doc(db, 'images', id), { data, name: file.name.slice(0, 120), bytes: bytesOf(data), createdAt: serverTimestamp() });
-    setPhoto({ image: `fsimg:${id}`, preview: data, thumb });
-    state.dirty = true;
-    status.textContent = `Photo uploaded (${Math.round(bytesOf(data) / 1024)} KB). Click Save to use it.`;
-  } catch (x) {
-    status.textContent = friendly(x);
-    toast(friendly(x), true);
+  const room = MAX_PHOTOS - state.photos.length;
+  if (room <= 0) { toast(`A product can have up to ${MAX_PHOTOS} photos.`, true); return; }
+  const batch = files.slice(0, room);
+  let done = 0;
+  for (const file of batch) {
+    status.textContent = `Uploading photo ${done + 1} of ${batch.length}…`;
+    try {
+      const up = await uploadImage(file, form.slug.value);
+      state.photos.push({ image: `fsimg:${up.id}`, preview: up.data, thumb: up.thumb });
+      done++;
+      state.dirty = true;
+      renderPhotos();
+    } catch (x) {
+      toast(friendly(x), true);
+    }
   }
+  status.textContent = done
+    ? `${done} photo${done === 1 ? '' : 's'} uploaded${files.length > batch.length ? ` (limit is ${MAX_PHOTOS})` : ''}. Click Save to keep ${done === 1 ? 'it' : 'them'}.`
+    : 'No photos were uploaded.';
 });
-$('[data-remove-photo]').addEventListener('click', () => { setPhoto(null); state.dirty = true; });
 
 // ---------- orders ----------
 async function loadOrders() {
@@ -637,20 +702,75 @@ $('[data-orders]').addEventListener('change', async (e) => {
   const sel = e.target.closest('[data-order-status]');
   if (!sel) return;
   const o = state.orders.find((x) => x.id === sel.getAttribute('data-order-status'));
+  sel.disabled = true;
   try {
-    await updateDoc(doc(db, 'orders', o.id), { status: sel.value });
+    const res = await setOrderStatus(o.id, sel.value);
     o.status = sel.value;
+    o.stockDeducted = res.stockDeducted;
+    if (res.stockChanged.length) {
+      await loadProducts();
+      markPending();
+    }
     updateBadges();
     renderOrders();
-    toast(`Order ${o.ref || o.id} marked ${sel.value}.`);
-  } catch (x) { toast(friendly(x), true); }
+    const stockMsg = res.stockChanged.length ? ` Stock ${res.stockDeducted ? 'reduced' : 'restored'} for ${res.stockChanged.length} product${res.stockChanged.length === 1 ? '' : 's'} — publish to update the shop.` : '';
+    toast(`Order ${o.ref || o.id} marked ${sel.value}.${stockMsg}`);
+  } catch (x) {
+    toast(friendly(x), true);
+    sel.value = o.status;
+  } finally {
+    sel.disabled = false;
+  }
 });
+
+// Changes an order's status in one transaction:
+// - updates the order and the customer's tracking page (with a timeline entry)
+// - takes the units out of stock when an order is first confirmed/shipped/delivered,
+//   and puts them back if it is cancelled (or reset to new) later.
+const COUNTS_AGAINST_STOCK = ['confirmed', 'shipped', 'delivered'];
+async function setOrderStatus(orderId, status) {
+  return runTransaction(db, async (tx) => {
+    const orderRef = doc(db, 'orders', orderId);
+    const trackRef = doc(db, 'tracking', orderId);
+    const [orderSnap, trackSnap] = await Promise.all([tx.get(orderRef), tx.get(trackRef)]);
+    if (!orderSnap.exists()) throw new Error('This order no longer exists.');
+    const order = orderSnap.data();
+    const wasDeducted = !!order.stockDeducted;
+    const deduct = COUNTS_AGAINST_STOCK.includes(status) && !wasDeducted;
+    const restore = !COUNTS_AGAINST_STOCK.includes(status) && wasDeducted;
+
+    // Quantities per product in this order.
+    const need = new Map();
+    for (const l of order.items || []) need.set(l.slug, (need.get(l.slug) || 0) + (Number(l.qty) || 0));
+    const changes = [];
+    if (deduct || restore) {
+      const snaps = await Promise.all([...need.keys()].map((slug) => tx.get(doc(db, 'products', slug))));
+      snaps.forEach((s) => {
+        if (!s.exists() || !Number.isFinite(s.data().qty)) return; // stock not tracked
+        const p = s.data();
+        const qty = Math.max(0, p.qty + (deduct ? -1 : 1) * need.get(s.id));
+        let stock = p.stock;
+        if (qty === 0 && stock === 'InStock') stock = 'OutOfStock';
+        if (qty > 0 && stock === 'OutOfStock') stock = 'InStock';
+        changes.push({ ref: s.ref, qty, stock });
+      });
+    }
+
+    const now = Timestamp.now();
+    const stockDeducted = deduct ? true : restore ? false : wasDeducted;
+    tx.update(orderRef, { status, stockDeducted });
+    if (trackSnap.exists()) tx.update(trackRef, { status, updatedAt: now, history: arrayUnion({ status, at: now }) });
+    changes.forEach((c) => tx.update(c.ref, { qty: c.qty, stock: c.stock, updatedAt: serverTimestamp() }));
+    return { stockDeducted, stockChanged: changes };
+  });
+}
 $('[data-orders]').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-order-delete]');
   if (!btn || !confirm('Delete this order record?')) return;
   const id = btn.getAttribute('data-order-delete');
   try {
     await deleteDoc(doc(db, 'orders', id));
+    await deleteDoc(doc(db, 'tracking', id)).catch(() => {});
     state.orders = state.orders.filter((x) => x.id !== id);
     updateBadges();
     renderOrders();
@@ -726,15 +846,17 @@ function renderOverview() {
     </div>`).join('') : '<p class="muted">No orders yet.</p>';
 
   const out = state.products.filter((p) => p.stock === 'OutOfStock').length;
-  const noPhoto = state.products.filter((p) => !p.image).length;
+  const noPhoto = state.products.filter((p) => !imagesOf(p).length).length;
+  const low = state.products.filter((p) => isLow(p) && p.qty > 0 && p.stock !== 'OutOfStock').length;
   const todo = [
-    [newOrders, 'New orders to confirm', '#/orders', true],
-    [newMsgs, 'Unread messages', '#/messages', true],
-    [out, 'Products out of stock', '#/', false],
-    [noPhoto, 'Products without a real photo', '#/', false],
+    [newOrders, 'New orders to confirm', '#/orders', true, ''],
+    [newMsgs, 'Unread messages', '#/messages', true, ''],
+    [low, `Low stock (${lowStockAt()} or fewer left)`, '#/', true, 'low'],
+    [out, 'Products out of stock', '#/', false, 'OutOfStock'],
+    [noPhoto, 'Products without a real photo', '#/', false, ''],
   ].filter(([n]) => n > 0);
   $('[data-todo]').innerHTML = todo.length
-    ? todo.map(([n, label, href, warn]) => `<li class="${warn ? 'warn' : ''}"><a href="${href}"${label.includes('stock') ? ' data-goto-stock="OutOfStock"' : ''}>${label}<b class="count">${n}</b></a></li>`).join('')
+    ? todo.map(([n, label, href, warn, goto]) => `<li class="${warn ? 'warn' : ''}"><a href="${href}"${goto ? ` data-goto-stock="${goto}"` : ''}>${label}<b class="count">${n}</b></a></li>`).join('')
     : '<li class="muted">All caught up.</li>';
   if ($('[data-publish]').classList.contains('pending')) {
     $('[data-todo]').insertAdjacentHTML('afterbegin', '<li class="warn"><a href="#" data-do-publish>Unpublished changes — publish now<b class="count">!</b></a></li>');
@@ -743,7 +865,12 @@ function renderOverview() {
 $('[data-todo]').addEventListener('click', (e) => {
   if (e.target.closest('[data-do-publish]')) { e.preventDefault(); $('[data-publish]').click(); }
   const s = e.target.closest('[data-goto-stock]');
-  if (s) { $('[data-filter-stock]').value = s.getAttribute('data-goto-stock'); state.page = 1; }
+  if (s) {
+    const g = s.getAttribute('data-goto-stock');
+    state.lowOnly = g === 'low';
+    $('[data-filter-stock]').value = g === 'low' ? '' : g;
+    state.page = 1;
+  }
 });
 
 // ---------- categories ----------
@@ -791,6 +918,346 @@ $('[data-export-customers]').addEventListener('click', () => {
   ]);
 });
 
+// ---------- discounts ----------
+const couponForm = $('[data-coupon-editor]');
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const couponState = (c) => {
+  if (!c.active) return ['inactive', 'Inactive'];
+  if (c.expires && c.expires < todayISO()) return ['expired', 'Expired'];
+  if (c.maxUses && c.uses >= c.maxUses) return ['used', 'Used up'];
+  return ['active', 'Active'];
+};
+
+async function loadCoupons() {
+  const snap = await getDocs(collection(db, 'coupons'));
+  state.coupons = snap.docs.map((d) => ({ code: d.id, ...d.data() })).sort((a, b) => a.code.localeCompare(b.code));
+}
+function renderCoupons() {
+  $('[data-coupons]').innerHTML = state.coupons.map((c) => {
+    const [cls, label] = couponState(c);
+    return `<tr>
+      <td><span class="code-chip">${esc(c.code)}</span></td>
+      <td>${c.type === 'percent' ? `${esc(c.value)}% off` : `${money(c.value)} off`}</td>
+      <td>${c.minOrder ? money(c.minOrder) : '—'}</td>
+      <td>${c.expires ? esc(new Date(c.expires + 'T00:00:00').toLocaleDateString('en-GB', { dateStyle: 'medium' })) : 'Never'}</td>
+      <td>${esc(c.uses || 0)}${c.maxUses ? ` / ${esc(c.maxUses)}` : ''}</td>
+      <td><span class="status ${cls}">${label}</span></td>
+      <td class="c"><span class="acts">
+        <button type="button" class="icon-act" data-coupon-edit="${esc(c.code)}" aria-label="Edit ${esc(c.code)}" title="Edit">${icon('pencil')}</button>
+        <button type="button" class="icon-act" data-coupon-del="${esc(c.code)}" aria-label="Delete ${esc(c.code)}" title="Delete">${icon('ban')}</button>
+      </span></td>
+    </tr>`;
+  }).join('');
+  $('[data-coupons-empty]').hidden = state.coupons.length > 0;
+}
+function openCoupon(c) {
+  state.editingCoupon = c || null;
+  couponForm.reset();
+  $('[data-coupon-title]').textContent = c ? `Edit ${c.code}` : 'New discount code';
+  couponForm.code.readOnly = !!c;
+  if (c) {
+    couponForm.code.value = c.code;
+    couponForm.type.value = c.type;
+    couponForm.value.value = c.value;
+    couponForm.minOrder.value = c.minOrder || '';
+    couponForm.expires.value = c.expires || '';
+    couponForm.maxUses.value = c.maxUses || '';
+    couponForm.active.checked = !!c.active;
+  }
+  updateValueHint();
+  $('[data-coupon-error]').hidden = true;
+  couponForm.hidden = false;
+  couponForm.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  (c ? couponForm.value : couponForm.code).focus();
+}
+const updateValueHint = () => {
+  $('[data-value-hint]').textContent = couponForm.type.value === 'percent' ? 'Percent off the order total (1–90)' : 'Naira off the order total';
+};
+couponForm.type.addEventListener('change', updateValueHint);
+$('[data-coupon-new]').addEventListener('click', () => openCoupon(null));
+$('[data-coupon-cancel]').addEventListener('click', () => { couponForm.hidden = true; });
+couponForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('[data-coupon-error]');
+  err.hidden = true;
+  const f = couponForm;
+  try {
+    const code = f.code.value.trim().toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9-]{1,19}$/.test(code)) throw new Error('Codes use 2–20 letters, numbers or dashes, e.g. HARVEST10.');
+    if (!state.editingCoupon && state.coupons.some((c) => c.code === code)) throw new Error(`The code ${code} already exists.`);
+    const value = Number(f.value.value);
+    if (!Number.isInteger(value) || value < 1) throw new Error('Enter a discount value of 1 or more.');
+    if (f.type.value === 'percent' && value > 90) throw new Error('A percentage discount can be at most 90%.');
+    const data = {
+      type: f.type.value,
+      value,
+      minOrder: Math.max(0, Math.floor(Number(f.minOrder.value) || 0)),
+      expires: f.expires.value || '',
+      maxUses: Math.max(0, Math.floor(Number(f.maxUses.value) || 0)),
+      active: f.active.checked,
+      uses: state.editingCoupon ? state.editingCoupon.uses || 0 : 0,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'coupons', code), data);
+    await loadCoupons();
+    renderCoupons();
+    f.hidden = true;
+    toast(`Code ${code} saved — customers can use it now.`);
+  } catch (x) {
+    err.textContent = friendly(x);
+    err.hidden = false;
+  }
+});
+$('[data-coupons]').addEventListener('click', async (e) => {
+  const ed = e.target.closest('[data-coupon-edit]');
+  const del = e.target.closest('[data-coupon-del]');
+  if (ed) openCoupon(state.coupons.find((c) => c.code === ed.getAttribute('data-coupon-edit')));
+  if (del) {
+    const code = del.getAttribute('data-coupon-del');
+    if (!confirm(`Delete the code ${code}? Customers will no longer be able to use it.`)) return;
+    try {
+      await deleteDoc(doc(db, 'coupons', code));
+      state.coupons = state.coupons.filter((c) => c.code !== code);
+      renderCoupons();
+      toast(`Code ${code} deleted.`);
+    } catch (x) { toast(friendly(x), true); }
+  }
+});
+
+// ---------- guides (blog) ----------
+const postForm = $('[data-post-editor]');
+const rte = $('[data-post-body]');
+
+async function loadPosts() {
+  const snap = await getDocs(collection(db, 'posts'));
+  state.posts = snap.docs.map((d) => ({ slug: d.id, ...d.data() })).sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1));
+}
+function renderPosts() {
+  $('[data-posts]').innerHTML = state.posts.map((p) => `<tr>
+      <td><a class="pname" href="#/guide/${esc(p.slug)}">${esc(p.title)}</a><div class="sub">/guides/${esc(p.slug)}/</div></td>
+      <td>${p.date ? esc(new Date(p.date + 'T00:00:00').toLocaleDateString('en-GB', { dateStyle: 'medium' })) : ''}</td>
+      <td><span class="status ${p.published ? 'active' : 'inactive'}">${p.published ? 'Published' : 'Draft'}</span></td>
+      <td class="c"><span class="acts">
+        <a class="icon-act" href="#/guide/${esc(p.slug)}" aria-label="Edit ${esc(p.title)}" title="Edit">${icon('pencil')}</a>
+        ${p.published ? `<a class="icon-act" href="/guides/${esc(p.slug)}/" target="_blank" rel="noopener" aria-label="View ${esc(p.title)}" title="View on site">${icon('eye')}</a>` : ''}
+      </span></td>
+    </tr>`).join('');
+  $('[data-posts-empty]').hidden = state.posts.length > 0;
+  $('[data-posts]').closest('.table-card').hidden = state.posts.length === 0;
+}
+
+$('[data-posts-import]').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (!confirm('Import the 3 example guides? You can edit or delete them afterwards.')) return;
+  btn.disabled = true;
+  try {
+    const seed = await fetch('/admin/seed-posts.json').then((r) => r.json());
+    const batch = writeBatch(db);
+    seed.forEach((p) => batch.set(doc(db, 'posts', p.slug), {
+      title: p.title, excerpt: p.excerpt || '', metaDescription: p.metaDescription || '', date: p.date,
+      related: p.related || [], body: p.body.trim(), published: true, updatedAt: serverTimestamp(),
+    }));
+    await batch.commit();
+    await loadPosts();
+    renderPosts();
+    markPending();
+    toast(`Imported ${seed.length} guides. Click Publish to put them on the website.`);
+  } catch (x) {
+    toast(friendly(x), true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Firestore photo references (fsimg:id) are shown in the editor as real images.
+function bodyToEditor(html) {
+  rte.innerHTML = html || '';
+  $$('img', rte).forEach((img) => {
+    const src = img.getAttribute('src') || '';
+    if (!src.startsWith('fsimg:')) return;
+    const id = src.slice(6);
+    img.setAttribute('data-fsimg', id);
+    img.removeAttribute('src');
+    getDoc(doc(db, 'images', id)).then((d) => { if (d.exists()) img.src = d.data().data; });
+  });
+}
+function editorToBody() {
+  const clone = rte.cloneNode(true);
+  $$('img', clone).forEach((img) => {
+    const id = img.getAttribute('data-fsimg');
+    if (id) { img.setAttribute('src', `fsimg:${id}`); img.removeAttribute('data-fsimg'); }
+    else if ((img.getAttribute('src') || '').startsWith('data:')) img.remove(); // pasted images aren't stored
+  });
+  return clone.innerHTML.replace(/&nbsp;/g, ' ').trim();
+}
+
+function renderRelated(selected) {
+  const q = $('[data-related-filter]').value.trim().toLowerCase();
+  const sel = new Set(selected);
+  $('[data-related]').innerHTML = state.products
+    .filter((p) => !q || p.name.toLowerCase().includes(q) || sel.has(p.slug))
+    .map((p) => `<label><input type="checkbox" value="${esc(p.slug)}"${sel.has(p.slug) ? ' checked' : ''}>${esc(p.name)}</label>`)
+    .join('') || '<p class="muted small">No products yet.</p>';
+}
+const selectedRelated = () => $$('[data-related] input:checked').map((i) => i.value);
+$('[data-related-filter]').addEventListener('input', () => {
+  const keep = new Set([...(state.relatedPick || []), ...selectedRelated()]);
+  state.relatedPick = [...keep];
+  renderRelated(state.relatedPick);
+});
+$('[data-related]').addEventListener('change', (e) => {
+  const v = e.target.value;
+  const keep = new Set(state.relatedPick || []);
+  e.target.checked ? keep.add(v) : keep.delete(v);
+  state.relatedPick = [...keep];
+  state.dirty = true;
+});
+
+function openPost(p) {
+  state.editingPost = p || null;
+  state.postSlugTouched = !!p;
+  postForm.reset();
+  $('[data-post-title]').textContent = p ? 'Edit guide' : 'New guide';
+  postForm.title.value = p ? p.title : '';
+  postForm.slug.value = p ? p.slug : '';
+  postForm.slug.readOnly = !!p;
+  $('[data-post-slug-hint]').textContent = p ? `Address is fixed: /guides/${p.slug}/` : 'Address: /guides/…/ — cannot be changed later';
+  postForm.published.checked = p ? !!p.published : false;
+  postForm.date.value = (p && p.date) || todayISO();
+  postForm.excerpt.value = (p && p.excerpt) || '';
+  postForm.metaDescription.value = (p && p.metaDescription) || '';
+  updateMetaCount();
+  bodyToEditor(p ? p.body : '');
+  state.relatedPick = p && Array.isArray(p.related) ? [...p.related] : [];
+  $('[data-related-filter]').value = '';
+  renderRelated(state.relatedPick);
+  const live = $('[data-post-live]');
+  live.hidden = !(p && p.published);
+  if (p) live.href = `/guides/${p.slug}/`;
+  $('[data-post-delete]').hidden = !p;
+  $('[data-post-error]').hidden = true;
+  state.dirty = false;
+  show('guide-edit');
+  if (!p) postForm.title.focus();
+}
+const updateMetaCount = () => { $('[data-meta-count]').textContent = `${postForm.metaDescription.value.length}/160 recommended`; };
+
+postForm.addEventListener('input', (e) => {
+  state.dirty = true;
+  if (e.target === postForm.title && !state.postSlugTouched) postForm.slug.value = slugify(postForm.title.value);
+  if (e.target === postForm.slug) { state.postSlugTouched = true; postForm.slug.value = postForm.slug.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'); }
+  if ((e.target === postForm.title || e.target === postForm.slug) && !state.editingPost) {
+    $('[data-post-slug-hint]').textContent = `Address: /guides/${postForm.slug.value || '…'}/ — cannot be changed later`;
+  }
+  if (e.target === postForm.metaDescription) updateMetaCount();
+});
+rte.addEventListener('input', () => { state.dirty = true; });
+
+// Paste as plain text so formatting from Word/websites doesn't come along.
+rte.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, text);
+});
+rte.addEventListener('focus', () => { document.execCommand('defaultParagraphSeparator', false, 'p'); });
+
+// Toolbar
+const blockOf = (node) => {
+  while (node && node !== rte) {
+    if (node.nodeType === 1 && /^(P|H2|H3|H4|LI|BLOCKQUOTE)$/.test(node.tagName)) return node;
+    node = node.parentNode;
+  }
+  return null;
+};
+$('.rte-toolbar').addEventListener('mousedown', (e) => { if (e.target.closest('button')) e.preventDefault(); }); // keep selection
+$('.rte-toolbar').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cmd]');
+  if (!b) return;
+  rte.focus();
+  const cmd = b.getAttribute('data-cmd');
+  if (cmd === 'link') {
+    const url = prompt('Link to (e.g. /moisture-meters/ or https://…):', 'https://');
+    if (!url) return;
+    if (!/^(https?:\/\/|\/|mailto:|tel:)/i.test(url.trim())) { toast('Links must start with https://, / , mailto: or tel:', true); return; }
+    document.execCommand('createLink', false, url.trim());
+  } else if (cmd === 'note') {
+    let block = blockOf(window.getSelection().anchorNode);
+    if (!block || block.tagName !== 'P') { document.execCommand('formatBlock', false, 'p'); block = blockOf(window.getSelection().anchorNode); }
+    if (block) block.classList.toggle('note');
+  } else if (cmd === 'formatBlock') {
+    document.execCommand('formatBlock', false, b.getAttribute('data-arg'));
+  } else {
+    document.execCommand(cmd, false, null);
+  }
+  state.dirty = true;
+});
+$('[data-post-image]').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const status = $('[data-post-status]');
+  status.textContent = 'Uploading photo…';
+  try {
+    const up = await uploadImage(file, postForm.slug.value || 'guide');
+    rte.focus();
+    document.execCommand('insertHTML', false, `<p><img data-fsimg="${up.id}" src="${up.data}" alt="${esc(file.name.replace(/\.\w+$/, ''))}"></p><p><br></p>`);
+    state.dirty = true;
+    status.textContent = `Photo added (${up.kb} KB).`;
+  } catch (x) {
+    status.textContent = friendly(x);
+    toast(friendly(x), true);
+  }
+});
+
+postForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('[data-post-error]');
+  err.hidden = true;
+  try {
+    const title = postForm.title.value.trim().slice(0, 160);
+    if (!title) throw new Error('A title is required.');
+    const slug = state.editingPost ? state.editingPost.slug : postForm.slug.value.trim();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new Error('The URL slug may only use lowercase letters, numbers and single hyphens.');
+    if (!state.editingPost && state.posts.some((p) => p.slug === slug)) throw new Error(`Another guide already uses "${slug}".`);
+    const body = editorToBody();
+    if (!body.replace(/<[^>]+>/g, '').trim()) throw new Error('Write something in the guide first.');
+    if (body.length > 900000) throw new Error('This guide is too long to store. Split it into two guides.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(postForm.date.value)) throw new Error('Pick a date.');
+    const excerpt = postForm.excerpt.value.trim().slice(0, 400);
+    const data = {
+      title,
+      excerpt,
+      metaDescription: (postForm.metaDescription.value.trim() || excerpt).slice(0, 300),
+      date: postForm.date.value,
+      published: postForm.published.checked,
+      related: [...new Set([...(state.relatedPick || []), ...selectedRelated()])],
+      body,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'posts', slug), data);
+    await loadPosts();
+    state.dirty = false;
+    markPending();
+    toast(`Guide saved${data.published ? '' : ' as a draft'}. Click Publish to update the website.`);
+    location.hash = '#/guides';
+  } catch (x) {
+    err.textContent = friendly(x);
+    err.hidden = false;
+  }
+});
+$('[data-post-delete]').addEventListener('click', async () => {
+  const p = state.editingPost;
+  if (!p || !confirm(`Delete the guide "${p.title}"? It will be removed from the website when you publish.`)) return;
+  try {
+    await deleteDoc(doc(db, 'posts', p.slug));
+    state.posts = state.posts.filter((x) => x.slug !== p.slug);
+    state.dirty = false;
+    markPending();
+    toast('Guide deleted. Click Publish to update the website.');
+    location.hash = '#/guides';
+  } catch (x) { toast(friendly(x), true); }
+});
+
 // ---------- settings ----------
 const settingsForm = $('[data-settings]');
 async function openSettings() {
@@ -801,6 +1268,7 @@ async function openSettings() {
     if (!el.name) continue;
     if (el.name === 'deployHook') el.value = priv.exists() ? priv.data().deployHook || '' : '';
     else if (el.name === 'paymentMethods') el.value = (s.paymentMethods || []).join('\n');
+    else if (el.name === 'lowStockAt') el.value = Number.isFinite(s.lowStockAt) ? s.lowStockAt : 3;
     else if (el.name.startsWith('address.')) el.value = s.address[el.name.slice(8)] || '';
     else el.value = s[el.name] ?? '';
   }
@@ -824,6 +1292,7 @@ settingsForm.addEventListener('submit', async (e) => {
       hours: f.hours.value.trim(),
       freeShippingOver: Math.max(0, Number(f.freeShippingOver.value) || 0),
       paymentMethods: lines(f.paymentMethods.value).slice(0, 10),
+      lowStockAt: Math.max(0, Math.floor(Number(f.lowStockAt.value) || 0)),
       address: {
         street: f['address.street'].value.trim(), city: f['address.city'].value.trim(), region: f['address.region'].value.trim(),
         postalCode: f['address.postalCode'].value.trim(), country: f['address.country'].value.trim().toUpperCase(),
@@ -831,6 +1300,7 @@ settingsForm.addEventListener('submit', async (e) => {
       updatedAt: serverTimestamp(),
     };
     await Promise.all([setDoc(doc(db, 'settings', 'site'), site), setDoc(doc(db, 'settings', 'private'), { deployHook: hook })]);
+    state.settings = { ...state.settings, ...site };
     markPending();
     toast('Settings saved. Click Publish to update the website.');
   } catch (x) {
@@ -857,6 +1327,17 @@ async function route() {
     if (h === '#/overview') { show('overview'); await Promise.all([loadOrders(), loadMessages()]); renderOverview(); return; }
     if (h === '#/orders') { show('orders'); await loadOrders(); renderOrders(); return; }
     if (h === '#/messages') { show('messages'); await loadMessages(); renderMessages(); return; }
+    if (h === '#/discounts') { show('discounts'); $('[data-coupon-editor]').hidden = true; await loadCoupons(); renderCoupons(); return; }
+    if (h === '#/guides') { show('guides'); await loadPosts(); renderPosts(); return; }
+    if (h === '#/guide-new') return openPost(null);
+    m = /^#\/guide\/(.+)$/.exec(h);
+    if (m) {
+      if (!state.posts.length) await loadPosts();
+      const p = state.posts.find((x) => x.slug === decodeURIComponent(m[1]));
+      if (p) return openPost(p);
+      location.hash = '#/guides';
+      return;
+    }
     if (h === '#/categories') { show('categories'); renderCategories(); return; }
     if (h === '#/customers') { show('customers'); await loadOrders(); renderCustomers(); return; }
     if (h === '#/settings') { show('settings'); await openSettings(); return; }
@@ -869,7 +1350,7 @@ async function route() {
 
 let lastHash = location.hash;
 window.addEventListener('hashchange', () => {
-  const leavingEditor = /^#\/(new|edit\/|duplicate\/)/.test(lastHash);
+  const leavingEditor = /^#\/(new|edit\/|duplicate\/|guide-new|guide\/)/.test(lastHash);
   if (leavingEditor && state.dirty && !confirm('You have unsaved changes. Leave without saving?')) {
     history.replaceState(null, '', lastHash);
     return;
@@ -890,7 +1371,10 @@ async function start() {
     form.art.innerHTML = meta.artKeys.map((k) => `<option value="${esc(k)}">${esc(k.replace(/-/g, ' '))}</option>`).join('');
     try { markPending(localStorage.getItem(PENDING_KEY) === '1'); } catch {}
   }
-  await loadProducts();
+  await Promise.all([
+    loadProducts(),
+    getDoc(doc(db, 'settings', 'site')).then((s) => { state.settings = s.exists() ? s.data() : {}; }).catch(() => {}),
+  ]);
   // Badges for new orders/messages (ignore failures, e.g. before the first order exists).
   Promise.all([loadOrders(), loadMessages()]).catch(() => {});
   await route();

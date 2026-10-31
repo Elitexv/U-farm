@@ -551,6 +551,48 @@ body.no-scroll { overflow: hidden; }
 .toast a { color: #4ade80; }
 .toast.show { transform: translate(-50%, 0); }
 
+/* ---------- Product gallery & stock ---------- */
+.gallery-thumbs { display: flex; gap: 10px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; }
+.gallery-thumb { flex: none; width: 84px; height: 66px; padding: 4px; border-radius: 12px; border: 2px solid var(--line); background: #fff; cursor: pointer; transition: border-color 0.15s; }
+.gallery-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.gallery-thumb:hover { border-color: var(--line-2); }
+.gallery-thumb.on { border-color: var(--green-700); }
+.low-stock { display: inline-flex; margin: 10px 0 0 8px; padding: 6px 12px; border-radius: 999px; background: var(--orange-50); color: var(--orange-600); font-weight: 700; font-size: 0.86rem; }
+.line-note { display: block; color: var(--orange-600); font-size: 0.8rem; font-weight: 600; margin-top: 4px; }
+.stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ---------- Discount codes ---------- */
+.coupon-form { display: flex; gap: 8px; margin: 6px 0 4px; }
+.coupon-form input { flex: 1; min-width: 0; padding: 9px 12px; text-transform: uppercase; }
+.coupon-form .btn { flex: none; border-radius: 10px; }
+.coupon-msg { margin: 0 0 8px; font-size: 0.85rem; color: var(--orange-600); font-weight: 600; }
+.discount-line { color: var(--green-800); font-weight: 600; }
+.discount-line .remove { min-height: 0; margin-left: 4px; }
+
+/* ---------- Order tracking ---------- */
+.track-layout { display: grid; grid-template-columns: 420px 1fr; gap: 32px; align-items: start; }
+.track-layout > * { min-width: 0; }
+.track-form .btn { width: 100%; }
+.track-card { background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 28px; box-shadow: var(--shadow); }
+.track-card > .btn { margin-top: 8px; }
+.track-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.track-head h2 { margin: 0; }
+.track-head .eyebrow { margin-bottom: 4px; }
+.track-sum { text-align: right; display: flex; flex-direction: column; }
+.track-sum b { font-size: 1.3rem; color: var(--heading); }
+.track-sum span { color: var(--muted); font-size: 0.86rem; }
+.track-steps { list-style: none; margin: 0 0 18px; padding: 0; }
+.track-steps li { position: relative; display: flex; gap: 16px; padding-bottom: 22px; }
+.track-steps li:not(:last-child)::before { content: ''; position: absolute; left: 11px; top: 26px; bottom: 0; width: 2px; background: var(--line); }
+.track-steps li.done::before { background: var(--green-700); }
+.track-dot { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 2px solid var(--line-2); background: #fff; margin-top: 2px; }
+.track-steps li.done .track-dot { background: var(--green-700) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpath d='M6 12l4 4 8-8'/%3E%3C/svg%3E") center / 14px no-repeat; border-color: var(--green-700); }
+.track-steps li.now .track-dot { border-color: var(--orange); box-shadow: 0 0 0 5px rgba(245, 107, 19, 0.18); background: var(--orange); }
+.track-steps li.todo b { color: var(--muted); }
+.track-steps p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
+.track-steps small { color: var(--ink-2); font-size: 0.8rem; }
+.track-cancel { padding: 14px 16px; border-radius: 12px; background: #fde4e2; color: #b42318; font-weight: 600; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1540px) {
   /* Tighten the header so logo + 7 links + search fit on laptop screens */
@@ -602,7 +644,7 @@ body.no-scroll { overflow: hidden; }
 }
 @media (max-width: 1024px) {
   .utility-right { display: none; }
-  .hero-grid, .spotlight-grid, .detail-grid, .faq-grid, .contact-layout, .cart-layout { grid-template-columns: 1fr; }
+  .hero-grid, .spotlight-grid, .detail-grid, .faq-grid, .contact-layout, .cart-layout, .track-layout { grid-template-columns: 1fr; }
   .hero-grid { gap: 36px; padding-top: 36px; }
   .hero-visual { max-width: 680px; margin: 0 auto; width: 100%; }
   .hero-checks { gap: 10px 26px; }

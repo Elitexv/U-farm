@@ -97,11 +97,18 @@
       .filter(function (s) { return data.bySlug[s]; })
       .map(function (s) {
         var p = data.bySlug[s];
-        return { p: p, qty: cart[s], total: p.price * cart[s] };
+        // Never more than the units in stock (when stock is tracked).
+        var max = typeof p.qty === 'number' && p.stock === 'InStock' ? Math.max(1, p.qty) : 99;
+        var qty = Math.min(cart[s], max);
+        return { p: p, qty: qty, max: max, capped: cart[s] > max, total: p.price * qty };
       });
     var subtotal = lines.reduce(function (sum, l) { return sum + l.total; }, 0);
     var count = lines.reduce(function (sum, l) { return sum + l.qty; }, 0);
-    return { lines: lines, subtotal: subtotal, count: count };
+    var cp = couponFor(subtotal, data.store.currency);
+    return {
+      lines: lines, subtotal: subtotal, count: count,
+      discount: cp.discount, couponCode: cp.discount && cp.coupon ? cp.coupon.code : '', total: subtotal - cp.discount,
+    };
   }
 
   // ---------- shared cart markup ----------
@@ -113,9 +120,10 @@
       '<span class="line-meta">' + esc(l.p.sku) + ' &middot; ' + money(l.p.price, cur) + ' each</span>' +
       '<div class="line-actions"><div class="stepper">' +
       '<button type="button" data-cart-dec="' + s + '" aria-label="Decrease quantity of ' + esc(l.p.name) + '">&minus;</button>' +
-      '<input type="number" min="1" max="99" value="' + l.qty + '" data-cart-qty="' + s + '" aria-label="Quantity of ' + esc(l.p.name) + '">' +
-      '<button type="button" data-cart-inc="' + s + '" aria-label="Increase quantity of ' + esc(l.p.name) + '">+</button>' +
-      '</div><button type="button" class="remove" data-cart-remove="' + s + '">Remove</button></div></div>' +
+      '<input type="number" min="1" max="' + l.max + '" value="' + l.qty + '" data-cart-qty="' + s + '" aria-label="Quantity of ' + esc(l.p.name) + '">' +
+      '<button type="button" data-cart-inc="' + s + '" aria-label="Increase quantity of ' + esc(l.p.name) + '"' + (l.qty >= l.max ? ' disabled' : '') + '>+</button>' +
+      '</div><button type="button" class="remove" data-cart-remove="' + s + '">Remove</button></div>' +
+      (l.qty >= l.max && l.max < 99 ? '<span class="line-note">Only ' + l.max + ' in stock</span>' : '') + '</div>' +
       '<strong class="line-total">' + money(l.total, cur) + '</strong></li>';
   }
 
@@ -209,8 +217,9 @@
         '<div class="checkout" id="checkout">' +
         '<div class="cart-summary"><h2>Order summary</h2>' +
         '<p class="subtotal"><span>Items (' + c.count + ')</span><span>' + money(c.subtotal, cur) + '</span></p>' +
-        '<p class="subtotal"><span>Delivery</span><span>' + (st.freeShippingOver && c.subtotal >= st.freeShippingOver ? 'Free' : 'Confirmed on WhatsApp') + '</span></p>' +
-        '<p class="subtotal total"><span>Subtotal</span><strong>' + money(c.subtotal, cur) + '</strong></p></div>' +
+        couponHtml(c, cur) +
+        '<p class="subtotal"><span>Delivery</span><span>' + (st.freeShippingOver && c.total >= st.freeShippingOver ? 'Free' : 'Confirmed on WhatsApp') + '</span></p>' +
+        '<p class="subtotal total"><span>Total</span><strong>' + money(c.total, cur) + '</strong></p></div>' +
         '<form class="form" data-checkout novalidate>' +
         '<h2>Delivery details</h2>' +
         field('name', 'Full name', 'text', 'name', true) +
@@ -253,17 +262,125 @@
     });
   }
 
+  // e.g. UF-261021-8K3QZP — 6 random characters, no look-alikes (0/O, 1/I).
   function orderRef() {
     var d = new Date();
     var pad = function (n) { return String(n).padStart(2, '0'); };
-    return 'UF-' + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' +
-      Math.random().toString(36).slice(2, 6).toUpperCase();
+    var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var rnd = new Uint32Array(6);
+    crypto.getRandomValues(rnd);
+    var tail = Array.prototype.map.call(rnd, function (n) { return abc[n % abc.length]; }).join('');
+    return 'UF-' + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + tail;
+  }
+
+  // ---------- discount codes ----------
+  var COUPON_KEY = 'ufarm-coupon';
+  var todayISO = function () { return new Date().toISOString().slice(0, 10); };
+
+  // Discount for a subtotal, plus a reason when the code doesn't apply.
+  function couponFor(subtotal, cur) {
+    var cp = load(COUPON_KEY, null);
+    if (!cp) return { coupon: null, discount: 0 };
+    if (cp.expires && cp.expires < todayISO()) { store(COUPON_KEY, null); return { coupon: null, discount: 0, note: 'Code ' + cp.code + ' has expired.' }; }
+    if (subtotal < (cp.minOrder || 0)) return { coupon: cp, discount: 0, note: 'Spend ' + money(cp.minOrder - subtotal, cur) + ' more to use ' + cp.code + '.' };
+    var d = cp.type === 'percent' ? Math.round(subtotal * cp.value / 100) : cp.value;
+    return { coupon: cp, discount: Math.max(0, Math.min(subtotal, d)) };
+  }
+
+  function couponHtml(c, cur) {
+    var r = couponFor(c.subtotal, cur);
+    var row = r.coupon && r.discount
+      ? '<p class="subtotal discount-line"><span>Discount <b>' + esc(r.coupon.code) + '</b> <button type="button" class="remove" data-coupon-remove>Remove</button></span><span>−' + money(r.discount, cur) + '</span></p>'
+      : '';
+    return row +
+      '<form class="coupon-form" data-coupon-form novalidate>' +
+      '<label class="sr-only" for="coupon-code">Discount code</label>' +
+      '<input id="coupon-code" name="code" placeholder="Discount code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30"' + (r.coupon ? ' value="' + esc(r.coupon.code) + '"' : '') + '>' +
+      '<button type="submit" class="btn btn-sm btn-outline">Apply</button></form>' +
+      '<p class="coupon-msg" data-coupon-msg' + (r.note ? '' : ' hidden') + '>' + esc(r.note || '') + '</p>';
+  }
+
+  // Reads one code from Firestore (codes can be fetched one at a time, never listed).
+  function fetchCoupon(fb, code) {
+    var url = 'https://firestore.googleapis.com/v1/projects/' + fb.projectId + '/databases/(default)/documents/coupons/' + encodeURIComponent(code) + '?key=' + fb.apiKey;
+    return fetch(url).then(function (r) {
+      if (r.status === 404 || r.status === 403) return null;
+      if (!r.ok) throw new Error('Could not check that code right now.');
+      return r.json().then(function (doc) {
+        var f = doc.fields || {};
+        var num = function (k) { return f[k] ? Number(f[k].integerValue || f[k].doubleValue || 0) : 0; };
+        return {
+          code: code, type: f.type ? f.type.stringValue : 'percent', value: num('value'), minOrder: num('minOrder'),
+          expires: f.expires ? f.expires.stringValue : '', active: f.active ? f.active.booleanValue : false,
+          uses: num('uses'), maxUses: num('maxUses'),
+        };
+      });
+    });
+  }
+
+  function applyCoupon(form) {
+    var msg = document.querySelector('[data-coupon-msg]');
+    var code = form.elements.code.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    var say = function (t) { msg.textContent = t; msg.hidden = false; };
+    if (!code) { store(COUPON_KEY, null); rerender(); return; }
+    form.querySelector('button').disabled = true;
+    catalog().then(function (data) {
+      return fetchCoupon(data.store.firebase, code).then(function (cp) {
+        if (!cp || !cp.active) return say('That code is not valid.');
+        if (cp.expires && cp.expires < todayISO()) return say('That code has expired.');
+        if (cp.maxUses && cp.uses >= cp.maxUses) return say('That code has been fully used.');
+        store(COUPON_KEY, { code: cp.code, type: cp.type, value: cp.value, minOrder: cp.minOrder, expires: cp.expires });
+        rerender();
+      });
+    }).catch(function (e) { say(e.message); }).finally(function () { form.querySelector('button').disabled = false; });
+  }
+
+  // ---------- order tracking ----------
+  function sha256(text) {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+  var lastFour = function (phone) { return String(phone || '').replace(/\D/g, '').slice(-4); };
+  var trackCheck = function (ref, phone) { return sha256(ref + ':' + lastFour(phone)); };
+
+  // Saves the order and its public tracking record in one atomic write.
+  // `exists: false` means an existing order can never be overwritten.
+  function saveOrder(fb, ref, order, check) {
+    var base = 'projects/' + fb.projectId + '/databases/(default)/documents/';
+    var tracking = {
+      ref: ref, status: 'new', createdAt: order.createdAt, updatedAt: order.createdAt,
+      itemCount: order.itemCount, total: order.total, currency: order.currency, check: check,
+      history: [{ status: 'new', at: order.createdAt }],
+    };
+    return fetch('https://firestore.googleapis.com/v1/' + base.replace(/\/$/, '') + ':commit?key=' + fb.apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        writes: [
+          { update: { name: base + 'orders/' + ref, fields: fsValue(order).mapValue.fields }, currentDocument: { exists: false } },
+          { update: { name: base + 'tracking/' + ref, fields: fsValue(tracking).mapValue.fields }, currentDocument: { exists: false } },
+        ],
+      }),
+    }).then(function (r) { if (!r.ok) throw new Error('Order save failed (' + r.status + ')'); });
+  }
+
+  // Counts one use of a discount code (best effort; never blocks the order).
+  function useCoupon(fb, code) {
+    var name = 'projects/' + fb.projectId + '/databases/(default)/documents/coupons/' + code;
+    return fetch('https://firestore.googleapis.com/v1/projects/' + fb.projectId + '/databases/(default)/documents:commit?key=' + fb.apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({ writes: [{ transform: { document: name, fieldTransforms: [{ fieldPath: 'uses', increment: { integerValue: '1' } }] }, currentDocument: { exists: true } }] }),
+    });
   }
 
   function orderMessage(data, c, v, ref) {
     var st = data.store;
     var cur = st.currency;
-    var free = st.freeShippingOver && c.subtotal >= st.freeShippingOver;
+    var free = st.freeShippingOver && c.total >= st.freeShippingOver;
     var out = [
       '*New order - ' + st.name + '*',
       'Order ref: *' + ref + '*',
@@ -277,7 +394,11 @@
     out.push(
       '',
       'Items: ' + c.count,
-      '*Subtotal: ' + money(c.subtotal, cur) + '*',
+      'Subtotal: ' + money(c.subtotal, cur)
+    );
+    if (c.discount) out.push('Discount (' + c.couponCode + '): -' + money(c.discount, cur));
+    out.push(
+      '*Total: ' + money(c.total, cur) + '*',
       'Delivery: ' + (free ? 'Free (order over ' + money(st.freeShippingOver, cur) + ')' : 'Please confirm cost'),
       '',
       '*Customer details*',
@@ -288,6 +409,7 @@
       'Payment: ' + v.payment
     );
     if (v.notes) out.push('Notes: ' + v.notes);
+    out.push('', 'Track this order: ' + (st.url || location.origin) + '/track/?ref=' + ref);
     out.push('', 'Please confirm availability, delivery cost and payment details. Thank you!');
     return out.join('\n');
   }
@@ -322,19 +444,28 @@
       var win = window.open(url, '_blank');
       if (win) win.opener = null;
 
-      // Keep a copy of the order for the admin panel (never blocks WhatsApp).
-      saveDoc(data.store.firebase, 'orders', ref, {
+      // Keep a copy of the order for the admin panel, plus a tracking record
+      // (never blocks WhatsApp — the WhatsApp message is the order of record).
+      var fb = data.store.firebase;
+      var order = {
         ref: ref,
         status: 'new',
         createdAt: new Date(),
         currency: data.store.currency,
         subtotal: c.subtotal,
+        total: c.total,
         itemCount: c.count,
         items: c.lines.map(function (l) {
           return { slug: l.p.slug, name: l.p.name, sku: l.p.sku, qty: l.qty, price: l.p.price, total: l.total };
         }),
         customer: { name: v.name, phone: v.phone, address: v.address, city: v.city, payment: v.payment || '', notes: v.notes || '' },
-      }).catch(function () { /* the WhatsApp message is the order of record */ });
+      };
+      if (c.discount) { order.discount = c.discount; order.couponCode = c.couponCode; }
+      trackCheck(ref, v.phone)
+        .then(function (check) { return saveOrder(fb, ref, order, check); })
+        .then(function () { if (c.discount) return useCoupon(fb, c.couponCode); })
+        .catch(function () { /* best effort */ });
+      store(COUPON_KEY, null);
 
       if (!win) location.href = url; // pop-up blocked: open in this tab
 
@@ -346,7 +477,8 @@
         '<h2>Your order is ready in WhatsApp</h2>' +
         '<p>Order reference <strong>' + esc(ref) + '</strong>. Press <strong>send</strong> in WhatsApp and our team will reply with delivery cost and payment details.</p>' +
         '<p><a class="btn btn-lg btn-wa" href="' + esc(url) + '" target="_blank" rel="noopener">' + waIcon + ' Open WhatsApp again</a> ' +
-        '<a class="btn btn-lg btn-ghost" href="/shop/">Continue shopping</a></p></div>';
+        '<a class="btn btn-lg btn-ghost" href="/track/?ref=' + encodeURIComponent(ref) + '">Track this order</a></p>' +
+        '<p class="small">Save your order number <strong>' + esc(ref) + '</strong> to track it later.</p></div>';
       root.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
@@ -387,7 +519,7 @@
     }
     if ((el = t.closest('[data-qty-step]'))) {
       var q = document.querySelector('[data-qty]');
-      q.value = Math.min(99, Math.max(1, (parseInt(q.value, 10) || 1) + Number(el.getAttribute('data-qty-step'))));
+      q.value = Math.min(Number(q.max) || 99, Math.max(1, (parseInt(q.value, 10) || 1) + Number(el.getAttribute('data-qty-step'))));
       return;
     }
     if (t.closest('[data-drawer-close]')) { closeDrawer(); return; }
@@ -396,6 +528,17 @@
     if ((el = t.closest('[data-cart-remove]'))) { setQty(el.getAttribute('data-cart-remove'), 0); return; }
     if (t.closest('[data-cart-clear]')) {
       if (confirm('Remove all items from your cart?')) saveCart({});
+      return;
+    }
+    if (t.closest('[data-coupon-remove]')) { store(COUPON_KEY, null); rerender(); return; }
+    if ((el = t.closest('[data-gallery-src]'))) {
+      var main = document.querySelector('[data-gallery-main]');
+      main.src = el.getAttribute('data-gallery-src');
+      document.querySelectorAll('[data-gallery-src]').forEach(function (b) {
+        var on = b === el;
+        b.classList.toggle('on', on);
+        if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+      });
       return;
     }
     if (drawer && !drawer.hidden && t.closest('.drawer-panel a[href]')) closeDrawer();
@@ -407,11 +550,86 @@
   });
 
   document.addEventListener('submit', function (e) {
+    var coupon = e.target.closest('[data-coupon-form]');
+    if (coupon) { e.preventDefault(); applyCoupon(coupon); return; }
+    var track = e.target.closest('[data-track-form]');
+    if (track) { e.preventDefault(); lookupOrder(track); return; }
     var form = e.target.closest('[data-checkout]');
     if (!form) return;
     e.preventDefault();
     submitCheckout(form);
   });
+
+  // ---------- order tracking page ----------
+  var STEPS = [
+    ['new', 'Order received', 'We have your order and will confirm it on WhatsApp.'],
+    ['confirmed', 'Confirmed', 'Your order is confirmed and being prepared.'],
+    ['shipped', 'On the way', 'Your order has been dispatched.'],
+    ['delivered', 'Delivered', 'Your order has been delivered. Thank you!'],
+  ];
+  function tsValue(v) { return v && v.timestampValue ? new Date(v.timestampValue) : null; }
+
+  function lookupOrder(form) {
+    var out = document.querySelector('[data-track-result]');
+    var err = form.querySelector('[data-track-error]');
+    var ref = form.elements.ref.value.trim().toUpperCase().replace(/\s+/g, '');
+    var last4 = form.elements.last4.value.replace(/\D/g, '');
+    var say = function (m) { err.textContent = m; err.hidden = !m; };
+    if (!/^UF-\d{6}-[A-Z0-9]{4,8}$/.test(ref)) return say('Enter your order number as shown, e.g. UF-261021-8K3QZP.');
+    if (last4.length !== 4) return say('Enter the last 4 digits of your phone number.');
+    say('');
+    var btn = form.querySelector('[type="submit"]');
+    btn.disabled = true;
+    out.innerHTML = '<p class="muted">Checking…</p>';
+    catalog().then(function (data) {
+      var fb = data.store.firebase;
+      var url = 'https://firestore.googleapis.com/v1/projects/' + fb.projectId + '/databases/(default)/documents/tracking/' + encodeURIComponent(ref) + '?key=' + fb.apiKey;
+      return Promise.all([fetch(url), sha256(ref + ':' + last4)]).then(function (r) {
+        var res = r[0], check = r[1];
+        if (res.status === 404 || res.status === 403) return null;
+        if (!res.ok) throw new Error('We could not check your order right now. Please try again.');
+        return res.json().then(function (doc) {
+          var f = doc.fields || {};
+          if (!f.check || f.check.stringValue !== check) return null; // wrong phone digits
+          return {
+            status: f.status ? f.status.stringValue : 'new',
+            total: Number((f.total && (f.total.integerValue || f.total.doubleValue)) || 0),
+            items: Number((f.itemCount && f.itemCount.integerValue) || 0),
+            currency: f.currency ? f.currency.stringValue : 'NGN',
+            created: tsValue(f.createdAt),
+            updated: tsValue(f.updatedAt),
+            history: ((f.history && f.history.arrayValue.values) || []).map(function (h) {
+              var m = h.mapValue.fields;
+              return { status: m.status.stringValue, at: tsValue(m.at) };
+            }),
+          };
+        });
+      }).then(function (o) {
+        if (!o) {
+          out.innerHTML = '<div class="track-card"><h2>Order not found</h2><p>Check the order number and the last 4 digits of the phone number you ordered with. Orders can take a minute to appear.</p>' +
+            '<a class="btn btn-wa" href="https://wa.me/' + data.store.whatsapp + '?text=' + encodeURIComponent('Hello U-farm, I need help with my order ' + ref) + '" rel="noopener">' + waIcon + ' Ask us on WhatsApp</a></div>';
+          return;
+        }
+        var fmt = function (d) { return d ? d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : ''; };
+        var when = {};
+        o.history.forEach(function (h) { when[h.status] = h.at; });
+        var cancelled = o.status === 'cancelled';
+        var reached = STEPS.findIndex(function (s) { return s[0] === o.status; });
+        out.innerHTML = '<div class="track-card">' +
+          '<div class="track-head"><div><p class="eyebrow">Order ' + esc(ref) + '</p><h2>' + (cancelled ? 'Cancelled' : esc(STEPS[Math.max(0, reached)][1])) + '</h2></div>' +
+          '<div class="track-sum"><b>' + money(o.total, o.currency) + '</b><span>' + o.items + ' item' + (o.items === 1 ? '' : 's') + ' · placed ' + esc(fmt(o.created)) + '</span></div></div>' +
+          (cancelled
+            ? '<p class="track-cancel">This order was cancelled. If this is unexpected, please contact us.</p>'
+            : '<ol class="track-steps">' + STEPS.map(function (s, i) {
+              var state = i < reached ? 'done' : i === reached ? 'now' : 'todo';
+              return '<li class="' + state + '"><span class="track-dot" aria-hidden="true"></span><div><b>' + s[1] + '</b><p>' + s[2] + '</p>' +
+                (when[s[0]] ? '<small>' + esc(fmt(when[s[0]])) + '</small>' : '') + '</div></li>';
+            }).join('') + '</ol>') +
+          '<a class="btn btn-wa" href="https://wa.me/' + data.store.whatsapp + '?text=' + encodeURIComponent('Hello U-farm, about my order ' + ref) + '" rel="noopener">' + waIcon + ' Questions? Chat with us</a></div>';
+      });
+    }).catch(function (e) { out.innerHTML = ''; say(e.message); })
+      .finally(function () { btn.disabled = false; });
+  }
 
   document.addEventListener('keydown', function (e) {
     if (!drawer || drawer.hidden) return;
@@ -570,4 +788,9 @@
   if (searchRoot) renderSearch(searchRoot);
   var contact = document.querySelector('[data-contact-form]');
   if (contact) setupContact(contact);
+  var trackForm = document.querySelector('[data-track-form]');
+  if (trackForm) {
+    var refParam = new URLSearchParams(location.search).get('ref');
+    if (refParam) trackForm.elements.ref.value = refParam.toUpperCase();
+  }
 })();

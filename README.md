@@ -15,7 +15,10 @@ npm run build   # generate dist/ only
 | `images` | Product photos uploaded in the admin (resized, stored as data) | Anyone reads · admins write |
 | `settings/site` | WhatsApp, phone, email, address, free-delivery amount, payment methods | Anyone reads · admins write |
 | `settings/private` | Vercel deploy hook URL | Admins only |
-| `orders` | Every WhatsApp checkout | Customers create · admins read/update |
+| `orders` | Every WhatsApp checkout (with discount, total, stock status) | Customers create · admins read/update |
+| `tracking` | Public order status + timeline, no personal details (ID = order number) | Fetched one at a time by order number · admins update |
+| `coupons` | Discount codes (ID = the code) | Fetched one at a time by exact code · admins manage |
+| `posts` | Buying guides written in the admin editor (sanitized on build) | Published ones public · drafts admin-only |
 | `messages` | Contact-form messages | Visitors create · admins read/update |
 | `admins` | One empty document per admin, ID = their Firebase UID | Set by hand in the console |
 
